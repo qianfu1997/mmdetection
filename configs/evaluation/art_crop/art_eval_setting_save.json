@@ -1,0 +1,16 @@
+{
+  "flip_ratio": 1,
+  "img_scale_long": 2560,
+  "img_scale_short": 800,
+  "rcnn_iou_thr": 0.8,
+  "conf_thr_fir": 0.0,
+  "min_area": 100,
+  "max_per_img": 200,
+  "nms_mode": "soft_nms",
+  "nms_setting": {
+    "nms_thr": 0.08,
+    "conf_thr": 0.8,
+    "sigma":0.1,
+    "soft_sort": "False"
+  }
+}
