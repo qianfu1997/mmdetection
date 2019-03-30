@@ -13,11 +13,12 @@ class RPN(BaseDetector, RPNTestMixin):
     def __init__(self,
                  backbone,
                  neck,
-                 rpn_head,
+                 rpn_head,          # if only use the rpn then just init rpn_head
                  train_cfg,
                  test_cfg,
                  pretrained=None):
         super(RPN, self).__init__()
+        # backbone like resnet50.
         self.backbone = builder.build_backbone(backbone)
         self.neck = builder.build_neck(neck) if neck is not None else None
         self.rpn_head = builder.build_head(rpn_head)
@@ -36,6 +37,7 @@ class RPN(BaseDetector, RPNTestMixin):
         x = self.backbone(img)
         if self.with_neck:
             x = self.neck(x)
+        # neck is the FPN
         return x
 
     def forward_train(self, img, img_meta, gt_bboxes=None):
@@ -45,7 +47,9 @@ class RPN(BaseDetector, RPNTestMixin):
         x = self.extract_feat(img)
         rpn_outs = self.rpn_head(x)
 
+        # concat he loss inputs.
         rpn_loss_inputs = rpn_outs + (gt_bboxes, img_meta, self.train_cfg.rpn)
+        # use tuple as parameters
         losses = self.rpn_head.loss(*rpn_loss_inputs)
         return losses
 

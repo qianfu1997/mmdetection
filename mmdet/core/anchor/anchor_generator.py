@@ -43,6 +43,7 @@ class AnchorGenerator(object):
         return base_anchors
 
     def _meshgrid(self, x, y, row_major=True):
+        # create the matrix.
         xx = x.repeat(len(y))
         yy = y.view(-1, 1).repeat(1, len(x)).view(-1)
         if row_major:
@@ -71,6 +72,8 @@ class AnchorGenerator(object):
 
     def valid_flags(self, featmap_size, valid_size, device='cuda'):
         feat_h, feat_w = featmap_size
+        # valid_w, valid_h is the boundary
+        # of valid anchors.
         valid_h, valid_w = valid_size
         assert valid_h <= feat_h and valid_w <= feat_w
         valid_x = torch.zeros(feat_w, dtype=torch.uint8, device=device)

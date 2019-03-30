@@ -127,10 +127,10 @@ def single_test_json(model, data_loader, post_processor,
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
-        img_tensor = data['img'][0]
+        img_tensor = data['img'][0] # for aug test data['img'] is a list.
         # img_tensor = data['img'][0]
         # img_metas = data['img_meta'][0].data[0]
-        img_metas = data['img_meta'][0].data[0]
+        img_metas = data['img_meta'][0].data[0] # datacontainer, return ._data
         filename = img_metas[0]['filename']
         img_name = osp.splitext(filename)[0]
         # for eval.
@@ -143,6 +143,7 @@ def single_test_json(model, data_loader, post_processor,
         ori_h, ori_w, _ = img_meta_0['ori_shape']
         scales = (ori_w * 1.0 / w, ori_h * 1.0 / h)
         # use the scores and segm_result to generate bbox and mask.
+        # bbox_result is a tuple contains list of different bboxes.
         vs_bbox_result = np.vstack(bbox_result)
         if segm_result is None:
             pred_bboxes = []

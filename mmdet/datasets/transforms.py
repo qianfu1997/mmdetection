@@ -101,6 +101,7 @@ class MaskTransform(object):
 
     def __call__(self, masks, pad_shape, scale_factor, flip=False):
         masks = [
+            # to resize mask, only use nearest. do not use bilinear.
             mmcv.imrescale(mask, scale_factor, interpolation='nearest')
             for mask in masks
         ]

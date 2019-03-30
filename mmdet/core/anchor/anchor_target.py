@@ -5,7 +5,7 @@ from ..utils import multi_apply
 
 
 def anchor_target(anchor_list,
-                  valid_flag_list,
+                  valid_flag_list,          # the anchors that within boundary.
                   gt_bboxes_list,
                   img_metas,
                   target_means,
@@ -88,8 +88,8 @@ def images_to_levels(target, num_level_anchors):
 
 
 def anchor_target_single(flat_anchors,
-                         valid_flags,
-                         gt_bboxes,
+                         valid_flags,           # the anchors that within boundary.
+                         gt_bboxes,             #
                          gt_labels,
                          img_meta,
                          target_means,
@@ -111,6 +111,7 @@ def anchor_target_single(flat_anchors,
             anchors, gt_bboxes, None, None, cfg)
     else:
         bbox_assigner = build_assigner(cfg.assigner)
+        # anchors are the list of all valid anchors.
         assign_result = bbox_assigner.assign(anchors, gt_bboxes, None,
                                              gt_labels)
         bbox_sampler = PseudoSampler()
@@ -121,15 +122,20 @@ def anchor_target_single(flat_anchors,
     bbox_targets = torch.zeros_like(anchors)
     bbox_weights = torch.zeros_like(anchors)
     labels = anchors.new_zeros(num_valid_anchors, dtype=torch.long)
+    # weights for all anchors, whether to calculate the loss
+    #
     label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
 
     pos_inds = sampling_result.pos_inds
     neg_inds = sampling_result.neg_inds
     if len(pos_inds) > 0:
+        # get the gt_target_deltas through gt_bboxes and pos_anchors.
+        # they are one-to-one corresponding.
         pos_bbox_targets = bbox2delta(sampling_result.pos_bboxes,
                                       sampling_result.pos_gt_bboxes,
                                       target_means, target_stds)
         bbox_targets[pos_inds, :] = pos_bbox_targets
+        # for the pos_anchors the weight set to 1.0
         bbox_weights[pos_inds, :] = 1.0
         if gt_labels is None:
             labels[pos_inds] = 1
@@ -138,8 +144,10 @@ def anchor_target_single(flat_anchors,
         if cfg.pos_weight <= 0:
             label_weights[pos_inds] = 1.0
         else:
+            # set the pos_weight according to cfg setting.
             label_weights[pos_inds] = cfg.pos_weight
     if len(neg_inds) > 0:
+        # for the neg_inds, set the weight to 1.0 and calculate the loss.
         label_weights[neg_inds] = 1.0
 
     # map up to original set of anchors
@@ -189,6 +197,6 @@ def unmap(data, count, inds, fill=0):
         ret[inds] = data
     else:
         new_size = (count, ) + data.size()[1:]
-        ret = data.new_full(new_size, fill)
-        ret[inds, :] = data
+        ret = data.new_full(new_size, fill)     # use data to fill the original set.
+        ret[inds, :] = data                     # and the inds are the data.
     return ret

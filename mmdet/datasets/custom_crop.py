@@ -116,6 +116,10 @@ class CustomCropDataset(Dataset):
         # image rescale if keep ratio
         self.resize_keep_ratio = resize_keep_ratio
 
+        # random scale mode, if img scales > 2 choose value, else range
+        self.resize_mode = 'value' if len(self.img_scales) > 2 else 'range'
+        # self.resize_mode = 'range'
+
     def __len__(self):
         return len(self.img_infos)
 
@@ -198,7 +202,8 @@ class CustomCropDataset(Dataset):
 
         # apply transforms
         flip = True if np.random.rand() < self.flip_ratio else False
-        img_scale = random_scale(self.img_scales, mode='value')  # sample a scale
+        img_scale = random_scale(self.img_scales, mode=self.resize_mode)
+        # img_scale = random_scale(self.img_scales, mode='value')  # sample a scale
         # here to select a rescale size, and pad the image.
         # scale_factor is used to guide the transformation of bboxes and masks.
         img, img_shape, pad_shape, scale_factor = self.img_transform(
@@ -279,7 +284,7 @@ class CustomCropDataset(Dataset):
         debug_img = img.copy() * 255
         debug_img = debug_img.transpose(1, 2, 0).astype(np.uint8)
         if not osp.exists(save_path):
-            os.mkdir(save_path)
+            os.makedirs(save_path)
         assert len(gt_masks) == len(gt_bboxes)
         for i in range(len(gt_bboxes)):
             bbox, mask = gt_bboxes[i], gt_masks[i]

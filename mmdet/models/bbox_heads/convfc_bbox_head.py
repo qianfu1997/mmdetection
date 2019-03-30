@@ -22,11 +22,12 @@ class ConvFCBBoxHead(BBoxHead):
                  num_cls_fcs=0,
                  num_reg_convs=0,
                  num_reg_fcs=0,
-                 conv_out_channels=256,
+                 conv_out_channels=256,         # default use the same with in_channels.
                  fc_out_channels=1024,
                  normalize=None,
                  *args,
                  **kwargs):
+        # init BBoxHead
         super(ConvFCBBoxHead, self).__init__(*args, **kwargs)
         assert (num_shared_convs + num_shared_fcs + num_cls_convs + num_cls_fcs
                 + num_reg_convs + num_reg_fcs > 0)
@@ -43,7 +44,7 @@ class ConvFCBBoxHead(BBoxHead):
         self.num_reg_convs = num_reg_convs
         self.num_reg_fcs = num_reg_fcs
         self.conv_out_channels = conv_out_channels
-        self.fc_out_channels = fc_out_channels
+        self.fc_out_channels = fc_out_channels      # fc_out_channels
         self.normalize = normalize
         self.with_bias = normalize is None
 
@@ -72,8 +73,10 @@ class ConvFCBBoxHead(BBoxHead):
 
         self.relu = nn.ReLU(inplace=True)
         # reconstruct fc_cls and fc_reg since input channels are changed
+        # use another fc_cls to reconstruct the cls_num_classes.
         if self.with_cls:
             self.fc_cls = nn.Linear(self.cls_last_dim, self.num_classes)
+        # same.
         if self.with_reg:
             out_dim_reg = (4 if self.reg_class_agnostic else
                            4 * self.num_classes)
@@ -81,16 +84,16 @@ class ConvFCBBoxHead(BBoxHead):
 
     def _add_conv_fc_branch(self,
                             num_branch_convs,
-                            num_branch_fcs,
+                            num_branch_fcs,     # fc in this branch.
                             in_channels,
                             is_shared=False):
         """Add shared or separable branch
 
         convs -> avg pool (optional) -> fcs
         """
-        last_layer_dim = in_channels
+        last_layer_dim = in_channels    # trace the channels.
         # add branch specific conv layers
-        branch_convs = nn.ModuleList()
+        branch_convs = nn.ModuleList()  #
         if num_branch_convs > 0:
             for i in range(num_branch_convs):
                 conv_in_channels = (last_layer_dim
@@ -98,7 +101,7 @@ class ConvFCBBoxHead(BBoxHead):
                 branch_convs.append(
                     ConvModule(
                         conv_in_channels,
-                        self.conv_out_channels,
+                        self.conv_out_channels,     # branch_conv use the conv_out_channels.
                         3,
                         padding=1,
                         normalize=self.normalize,
@@ -109,14 +112,16 @@ class ConvFCBBoxHead(BBoxHead):
         if num_branch_fcs > 0:
             # for shared branch, only consider self.with_avg_pool
             # for separated branches, also consider self.num_shared_fcs
+            # self.with_avg_pool is default False.
             if (is_shared
                     or self.num_shared_fcs == 0) and not self.with_avg_pool:
+                # last_layer_dim = last_layer_channels * roi_size ** 2
                 last_layer_dim *= (self.roi_feat_size * self.roi_feat_size)
             for i in range(num_branch_fcs):
-                fc_in_channels = (last_layer_dim
+                fc_in_channels = (last_layer_dim        # 256 * 7 * 7
                                   if i == 0 else self.fc_out_channels)
                 branch_fcs.append(
-                    nn.Linear(fc_in_channels, self.fc_out_channels))
+                    nn.Linear(fc_in_channels, self.fc_out_channels))    # 1024
             last_layer_dim = self.fc_out_channels
         return branch_convs, branch_fcs, last_layer_dim
 
@@ -144,7 +149,7 @@ class ConvFCBBoxHead(BBoxHead):
         x_cls = x
         x_reg = x
 
-        for conv in self.cls_convs:
+        for conv in self.cls_convs:     # convs of cls_branch.
             x_cls = conv(x_cls)
         if x_cls.dim() > 2:
             if self.with_avg_pool:
@@ -182,3 +187,5 @@ class SharedFCBBoxHead(ConvFCBBoxHead):
             fc_out_channels=fc_out_channels,
             *args,
             **kwargs)
+
+

@@ -39,6 +39,7 @@ class ArtCropDataset(CustomCropDataset):
                 'labels': <np.ndarray> (n, ),
                 'bboxes_ignore': <np.ndarray> (k, 4),
                 'labels_ignore': <np.ndarray> (k, 4) (optional field)
+                'img_annotation': <list<dict>>
                 'polygon_points:' <list<np.ndarray>>
             }
         },
@@ -119,14 +120,6 @@ class ArtCropDataset(CustomCropDataset):
                 print('{:d} % {:d}'.format(indx, len(files)))
         return img_infos
 
-    def generate_masks(self, height, width, polygon_points):
-        gt_masks = []
-        for polygon in polygon_points:
-            mask = np.zeros((height, width), dtype=np.uint8)
-            cv2.drawContours(mask, [polygon], -1, 1, -1)
-            gt_masks.append(mask)
-        return np.array(gt_masks)
-
     def generate_masks_ann(self, height, width, annotations):
         gt_masks = []
         for i in range(len(annotations)):
@@ -148,6 +141,18 @@ class ArtCropDataset(CustomCropDataset):
                 gt_ignore_masks.append(mask)
         return gt_ignore_masks
 
+    def generate_mask(self, height, width, annotations):
+        gt_masks = []
+        gt_ignore_masks = []
+        for i in range(len(annotations)):
+            mask = np.zeros((height, width), dtype=np.uint8)
+            polygon_points = np.asarray(annotations[i]['points']).reshape(-1, 2).astype(np.int64)
+            cv2.drawContours(mask, [polygon_points], -1, 1, -1)
+            if annotations[i]["illegibility"]:
+                gt_ignore_masks.append(mask)
+            else:
+                gt_masks.append(mask)
+        return gt_masks, gt_ignore_masks
 
     def debug(self, idx, ann):
         """ check whether the masks are fit to bboxes """
@@ -180,8 +185,9 @@ class ArtCropDataset(CustomCropDataset):
             'labels_ignore': labels_ignore
         }
         if self.with_mask:
-            gt_masks = self.generate_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
-            gt_ignore_masks = self.generate_ignore_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
+            # gt_masks = self.generate_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
+            # gt_ignore_masks = self.generate_ignore_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
+            gt_masks, gt_ignore_masks = self.generate_mask(height, width, self.img_infos[idx]['img_annotation'])
             ann['masks'] = gt_masks
             ann['ignore_masks'] = gt_ignore_masks
             assert len(gt_masks) == bboxes.shape[0]

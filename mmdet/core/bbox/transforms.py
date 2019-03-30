@@ -2,7 +2,7 @@ import mmcv
 import numpy as np
 import torch
 
-
+""" bbox2delta first transform proposals and gts to delta format. """
 def bbox2delta(proposals, gt, means=[0, 0, 0, 0], stds=[1, 1, 1, 1]):
     assert proposals.size() == gt.size()
 
@@ -18,10 +18,11 @@ def bbox2delta(proposals, gt, means=[0, 0, 0, 0], stds=[1, 1, 1, 1]):
     gw = gt[..., 2] - gt[..., 0] + 1.0
     gh = gt[..., 3] - gt[..., 1] + 1.0
 
-    dx = (gx - px) / pw
+    # (gx - proposal_x) / proposal_weight
+    dx = (gx - px) / pw         # gx = dx(predicted) * pw(the fixed) + px(the fixed)
     dy = (gy - py) / ph
-    dw = torch.log(gw / pw)
-    dh = torch.log(gh / ph)
+    dw = torch.log(gw / pw)     # dw = log(gw / pw)
+    dh = torch.log(gh / ph)     # dh = log(gh / ph)
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
 
     means = deltas.new_tensor(means).unsqueeze(0)
@@ -31,8 +32,9 @@ def bbox2delta(proposals, gt, means=[0, 0, 0, 0], stds=[1, 1, 1, 1]):
     return deltas
 
 
-def delta2bbox(rois,
-               deltas,
+""" transform the deltas to bbox. """
+def delta2bbox(rois,                    # rois are the corresponding anchors (x, y, x, y)
+               deltas,                  # deltas are the predicted vectors.
                means=[0, 0, 0, 0],
                stds=[1, 1, 1, 1],
                max_shape=None,
@@ -51,7 +53,7 @@ def delta2bbox(rois,
     py = ((rois[:, 1] + rois[:, 3]) * 0.5).unsqueeze(1).expand_as(dy)
     pw = (rois[:, 2] - rois[:, 0] + 1.0).unsqueeze(1).expand_as(dw)
     ph = (rois[:, 3] - rois[:, 1] + 1.0).unsqueeze(1).expand_as(dh)
-    gw = pw * dw.exp()
+    gw = pw * dw.exp()                  # the proposal
     gh = ph * dh.exp()
     gx = torch.addcmul(px, 1, pw, dx)  # gx = px + pw * dx
     gy = torch.addcmul(py, 1, ph, dy)  # gy = py + ph * dy

@@ -57,6 +57,7 @@ class AnchorHead(nn.Module):
         self.use_focal_loss = use_focal_loss
 
         self.anchor_generators = []
+        # generate anchors when init.
         for anchor_base in self.anchor_base_sizes:
             self.anchor_generators.append(
                 AnchorGenerator(anchor_base, anchor_scales, anchor_ratios))
@@ -85,6 +86,8 @@ class AnchorHead(nn.Module):
         return cls_score, bbox_pred
 
     def forward(self, feats):
+        # for different layer inputs, implement forward_single.
+        # feats are tuple of all feature maps output by backbone.
         return multi_apply(self.forward_single, feats)
 
     def get_anchors(self, featmap_sizes, img_metas):
@@ -101,11 +104,16 @@ class AnchorHead(nn.Module):
         num_levels = len(featmap_sizes)
 
         # since feature map sizes of all images are the same, we only compute
-        # anchors for one time
+        # anchors for one time ( for one batch, they are the same)
+        # it means that can generate feature map sizes according to the strides.
         multi_level_anchors = []
         for i in range(num_levels):
+            # genreate
+            # the anchors are map to the original image size, so the anchors
+            # of multi_level feature map can be used at the same time.
             anchors = self.anchor_generators[i].grid_anchors(
                 featmap_sizes[i], self.anchor_strides[i])
+            # multi_level_anchors (map to original map size)
             multi_level_anchors.append(anchors)
         anchor_list = [multi_level_anchors for _ in range(num_imgs)]
 
@@ -119,6 +127,7 @@ class AnchorHead(nn.Module):
                 h, w, _ = img_meta['pad_shape']
                 valid_feat_h = min(int(np.ceil(h / anchor_stride)), feat_h)
                 valid_feat_w = min(int(np.ceil(w / anchor_stride)), feat_w)
+                # select valid anchors.
                 flags = self.anchor_generators[i].valid_flags(
                     (feat_h, feat_w), (valid_feat_h, valid_feat_w))
                 multi_level_flags.append(flags)
@@ -175,12 +184,17 @@ class AnchorHead(nn.Module):
     def loss(self, cls_scores, bbox_preds, gt_bboxes, gt_labels, img_metas,
              cfg):
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
+        # the levels of rpn should equal to the levels of anchor_generators.
         assert len(featmap_sizes) == len(self.anchor_generators)
-
+        # generate anchors according to cfg, first.
         anchor_list, valid_flag_list = self.get_anchors(
             featmap_sizes, img_metas)
         sampling = False if self.use_focal_loss else True
         label_channels = self.cls_out_channels if self.use_sigmoid_cls else 1
+        # first get cls_reg_targets by anchor_target, there're the gt deltas.
+        # get target_deltas through gt_bboxes and anchor_list
+        # first sample the positive anchors by calculating the IoUs,
+        # then assign anchors to gt, then calculate the target deltas.
         cls_reg_targets = anchor_target(
             anchor_list,
             valid_flag_list,
@@ -198,6 +212,8 @@ class AnchorHead(nn.Module):
          num_total_pos, num_total_neg) = cls_reg_targets
         num_total_samples = (num_total_pos if self.use_focal_loss else
                              num_total_pos + num_total_neg)
+        # the predict values are the deltas,
+        # so just use the target to calculate the losses.
         losses_cls, losses_reg = multi_apply(
             self.loss_single,
             cls_scores,
@@ -216,12 +232,18 @@ class AnchorHead(nn.Module):
         num_levels = len(cls_scores)
 
         mlvl_anchors = [
+            # generate anchors of each level.
+            # then map anchors to original images.
+            # and is corresponding to the bbox_pred.
             self.anchor_generators[i].grid_anchors(cls_scores[i].size()[-2:],
                                                    self.anchor_strides[i])
             for i in range(num_levels)
         ]
         result_list = []
         for img_id in range(len(img_metas)):
+            # get cls_socres of different img and layers
+            # rearrange the result list, cls_score and bbox_pred
+            # for each level feature map.
             cls_score_list = [
                 cls_scores[i][img_id].detach() for i in range(num_levels)
             ]
@@ -230,6 +252,11 @@ class AnchorHead(nn.Module):
             ]
             img_shape = img_metas[img_id]['img_shape']
             scale_factor = img_metas[img_id]['scale_factor']
+            # get cls_score_list and bbox_pred_list for each input image,
+            # and generate proposals according to the cfg.
+            # bbox_pred_list is the feature map with 4 channels, assign anchors
+            # to bbox_pred_list to generate proposals.
+            # just generate proposals, do not assign and
             proposals = self.get_bboxes_single(cls_score_list, bbox_pred_list,
                                                mlvl_anchors, img_shape,
                                                scale_factor, cfg, rescale)
@@ -258,6 +285,7 @@ class AnchorHead(nn.Module):
                 scores = cls_score.softmax(-1)
             bbox_pred = bbox_pred.permute(1, 2, 0).reshape(-1, 4)
             nms_pre = cfg.get('nms_pre', -1)
+            # nms_pre is the upper bound of proposals.
             if nms_pre > 0 and scores.shape[0] > nms_pre:
                 if self.use_sigmoid_cls:
                     max_scores, _ = scores.max(dim=1)
@@ -267,6 +295,8 @@ class AnchorHead(nn.Module):
                 anchors = anchors[topk_inds, :]
                 bbox_pred = bbox_pred[topk_inds, :]
                 scores = scores[topk_inds, :]
+            # the anchors are corresponding to bbox_pred.
+            # generate bboxes through anchors and bbox_pred.
             bboxes = delta2bbox(anchors, bbox_pred, self.target_means,
                                 self.target_stds, img_shape)
             mlvl_bboxes.append(bboxes)

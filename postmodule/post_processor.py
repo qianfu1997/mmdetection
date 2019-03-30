@@ -14,7 +14,7 @@ import cv2
 import mmcv
 import pycocotools.mask as maskUtils
 import Polygon as plg
-
+from functools import partial
 """ To implement post-processing procedure 
     1. sort by confidence
     2. non-max suppression on IoU / softNMS on IoU
@@ -117,7 +117,7 @@ def rect_nms(bbox_rects, bbox_scores, nms_thr=0.5):
     return bbox_rects, bbox_scores
 
 
-def get_text_polygon(segm, mask_shape, scale_factor=None, min_area=0.0):
+def get_text_polygon(segm, mask_shape=None, scale_factor=None, min_area=0.0):
     """
     this method decode the mask and generate polygon for each cc.
     and the polygon size is fit to the original image.
@@ -158,7 +158,7 @@ def get_text_polygon(segm, mask_shape, scale_factor=None, min_area=0.0):
     return box
 
 
-def polygon_nms(polygon_bboxes, polygon_scores, nms_thr, conf_thr):
+def polygon_nms(polygon_bboxes, polygon_scores, nms_thr=0, conf_thr=0):
     """ nms method for polygon bboxes """
     assert len(polygon_bboxes) == len(polygon_scores)
     if len(polygon_bboxes) < 2:
@@ -176,7 +176,7 @@ def polygon_nms(polygon_bboxes, polygon_scores, nms_thr, conf_thr):
         poly_0 = polygon_bboxes[ordered_idx[0]]
         tmp_polys = [polygon_bboxes[i] for i in ordered_idx[1:]]
         ious = np.asarray(list(map(lambda x: get_intersection(poly_0, x) / get_union(poly_0, x), tmp_polys)))
-        # keep the bboxes that iou > thr
+        # keep the bboxes that iou < thr
         ordered_idx = ordered_idx[1:][ious < nms_thr]
     nms_polygon_bboxes = [polygon_bboxes[i] for i in keep]
     nms_polygon_scores = polygon_scores[keep]
@@ -188,7 +188,7 @@ def polygon_nms(polygon_bboxes, polygon_scores, nms_thr, conf_thr):
     return nms_polygon_bboxes, nms_polygon_scores
 
 
-def polygon_softnms(polygon_boxes, polygon_scores, conf_thr, sigma,
+def polygon_softnms(polygon_boxes, polygon_scores, conf_thr=0, sigma=0,
                     soft_sort=None, **kwargs):
     """ implement soft-nsm """
     assert len(polygon_boxes) == len(polygon_scores)
@@ -285,8 +285,24 @@ class PostProcessor(object):
         elif self.nms_mode == 'soft_nms':
             return polygon_softnms(polygon_bboxes, polygon_scores, **self.nms_setting)
 
-
-
+    # def process(self, segms, segms_scores, mask_shape, scale_factor=1.0):
+    #     assert len(segms) == len(segms_scores)
+    #     h, w, _ = mask_shape
+    #     inds = np.where(segms_scores > self.conf_thr_fir)[0]
+    #     p_get_text_polygon = partial(get_text_polygon, mask_shape=mask_shape, scale_factor=scale_factor,
+    #                                  min_area=self.min_area_thr)
+    #     polygon_bboxes = list(map(p_get_text_polygon, [segms[i] for i in inds]))
+    #     # polygon_bboxes = [poly for poly in polygon_bboxes if poly is not None]
+    #     # polygon_scores =
+    #     indx = [indx for indx, _ in enumerate(inds) if polygon_bboxes[indx] is not None]
+    #     inds = inds[indx]
+    #     polygon_bboxes = [polygon_bboxes[i] for i in indx]
+    #     polygon_scores = np.asarray(segms_scores[inds])
+    #     if self.nms_mode == 'nms':
+    #         return polygon_nms(polygon_bboxes, polygon_scores,
+    #                            nms_thr=self.nms_thr, conf_thr=self.conf_thr_sec)
+    #     elif self.nms_mode == 'soft_nms':
+    #         return polygon_softnms(polygon_bboxes, polygon_scores, **self.nms_setting)
 
 
 

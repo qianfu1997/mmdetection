@@ -38,7 +38,7 @@ def split_validation(image_path, ann_file, train_ann_file, val_ann_file,
     img_files = os.listdir(image_path)
     train_annotations = {}
     val_annotations = {}
-    with open(ann_file, 'r', encoding='utf-8_sig') as f:
+    with open(ann_file, 'r', encoding='utf-8') as f:
         gt_annotations = json.loads(f.read(), object_pairs_hook=OrderedDict)
 
     val_num, train_num = int(ratio * len(img_files)), len(img_files) - int(ratio * len(img_files))
@@ -54,9 +54,9 @@ def split_validation(image_path, ann_file, train_ann_file, val_ann_file,
         # train_annotations.append(gt_annotations[name])
         train_annotations[name] = gt_annotations[name]
 
-    with open(train_ann_file, 'w+', encoding='utf-8_sig') as f:
+    with open(train_ann_file, 'w+', encoding='utf-8') as f:
         json.dump(train_annotations, f)
-    with open(val_ann_file, 'w+', encoding='utf-8_sig') as f:
+    with open(val_ann_file, 'w+', encoding='utf-8') as f:
         json.dump(val_annotations, f)
 
 

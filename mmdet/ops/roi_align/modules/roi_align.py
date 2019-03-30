@@ -8,6 +8,7 @@ class RoIAlign(Module):
         super(RoIAlign, self).__init__()
 
         self.out_size = out_size
+        # spatial_scale is the stride to original image.
         self.spatial_scale = float(spatial_scale)
         self.sample_num = int(sample_num)
 

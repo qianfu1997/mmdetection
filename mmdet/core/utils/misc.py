@@ -19,8 +19,14 @@ def tensor2imgs(tensor, mean=(0, 0, 0), std=(1, 1, 1), to_rgb=True):
 
 
 def multi_apply(func, *args, **kwargs):
+    # partial is used to initial func with different settings.
     pfunc = partial(func, **kwargs) if kwargs else func
+    # implement pfunc to each args.
     map_results = map(pfunc, *args)
+    # use list to map_results of each args.
+    # and use tuple to warp all results.
+    # the final result is like:
+    # ([scores_1, scores_2, scores_3,...], [pred_1, pred_2, pred_3,...])
     return tuple(map(list, zip(*map_results)))
 
 

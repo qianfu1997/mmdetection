@@ -167,7 +167,7 @@ class DeepFPN(nn.Module):
             outs[i - 1] += F.interpolate(
                 outs[i], scale_factor=2, mode='nearest')
         # top-down path again
-        outs = [self.td_fpn_1x1convs[i](self.td_fpn_1x1convs[i](outs[i]))
+        outs = [self.td_fpn_1x1convs[i](self.td_fpn_3x3convs[i](outs[i]))
                 for i in range(used_backbone_levels)]
         # part 2: add extra levels
         if self.num_outs > len(outs):

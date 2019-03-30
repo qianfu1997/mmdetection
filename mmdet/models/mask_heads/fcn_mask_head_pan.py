@@ -10,7 +10,10 @@ from mmdet.core import mask_cross_entropy, mask_target
 
 
 @HEADS.register_module
-class FCNMaskHead(nn.Module):
+class FCNMaskHeadPAN(nn.Module):
+    """ a PAN version mask head.
+        combine the fc layer's features.
+    """
 
     def __init__(self,
                  num_convs=4,
@@ -22,8 +25,9 @@ class FCNMaskHead(nn.Module):
                  upsample_ratio=2,      # get the output of rpn and then upsample.
                  num_classes=81,
                  class_agnostic=False,
-                 normalize=None):
-        super(FCNMaskHead, self).__init__()
+                 normalize=None,
+                 num_fc_convs=2):
+        super(FCNMaskHeadPAN, self).__init__()
         if upsample_method not in [None, 'deconv', 'nearest', 'bilinear']:
             raise ValueError(
                 'Invalid upsample method {}, accepted methods '
@@ -36,12 +40,12 @@ class FCNMaskHead(nn.Module):
         self.upsample_method = upsample_method
         self.upsample_ratio = upsample_ratio
         self.num_classes = num_classes
+        self.num_fc_convs = num_fc_convs
         self.class_agnostic = class_agnostic
         self.normalize = normalize
         self.with_bias = normalize is None
 
         self.convs = nn.ModuleList()
-        # here to add convs. too deep may not be useful.
         for i in range(self.num_convs):
             in_channels = (self.in_channels
                            if i == 0 else self.conv_out_channels)
@@ -54,6 +58,27 @@ class FCNMaskHead(nn.Module):
                     padding=padding,
                     normalize=normalize,
                     bias=self.with_bias))
+        # above is the standard branch
+        self.fc_convs = nn.ModuleList()
+        for i in range(self.num_fc_convs):
+            out_channels_t = (self.conv_out_channels
+                            if i != self.num_fc_convs - 1 else self.conv_out_channels // 2)
+            padding = (self.conv_kernel_size -1 ) // 2
+            self.fc_convs.append(
+                ConvModule(
+                    self.conv_out_channels,
+                    out_channels_t,
+                    self.conv_kernel_size,
+                    padding=padding,
+                    normalize=normalize,
+                    bias=self.with_bias))
+        fc_inchannels = self.conv_out_channels // 2
+        fc_inchannels *= (self.roi_feat_size * self.roi_feat_size)
+        # same size with the deconv maps.
+        fc_outchannels = (self.roi_feat_size * self.upsample_ratio *
+                          self.roi_feat_size * self.upsample_ratio)
+        self.mask_fc = nn.Linear(fc_inchannels, fc_outchannels)
+
         if self.upsample_method is None:
             self.upsample = None
         elif self.upsample_method == 'deconv':
@@ -80,12 +105,23 @@ class FCNMaskHead(nn.Module):
             nn.init.constant_(m.bias, 0)
 
     def forward(self, x):
-        for conv in self.convs:
+        y = x
+        for idx, conv in enumerate(self.convs):
             x = conv(x)
+            if idx == len(self.convs) - 2:      #
+                y = x
+                for conv_ in self.fc_convs:
+                    y = conv_(y)
+        # fusion before deconv according to other implementations.
         if self.upsample is not None:
             x = self.upsample(x)
             if self.upsample_method == 'deconv':
                 x = self.relu(x)
+        y = y.view(y.size(0), -1)
+        y_fc = self.mask_fc(y).view(y.size(0), 1, x.size(2), x.size(3))
+        y_fc = y_fc.repeat(1, self.conv_out_channels, 1, 1)
+        # fusion: element-wise sum fusion after deconv according to paper
+        x = y_fc + x
         mask_pred = self.conv_logits(x)
         return mask_pred
 

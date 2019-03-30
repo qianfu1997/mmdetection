@@ -2,6 +2,9 @@ from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_proposals,
                         merge_aug_bboxes, merge_aug_masks, multiclass_nms)
 
 
+""" for ga_anchor here to add TestMixin """
+
+
 class RPNTestMixin(object):
 
     def simple_test_rpn(self, x, img_meta, rpn_test_cfg):
@@ -27,6 +30,7 @@ class RPNTestMixin(object):
 
 class BBoxTestMixin(object):
 
+    # the TestMixin for test bbox head.
     def simple_test_bboxes(self,
                            x,
                            img_meta,
@@ -34,8 +38,8 @@ class BBoxTestMixin(object):
                            rcnn_test_cfg,
                            rescale=False):
         """Test only det bboxes without augmentation."""
-        rois = bbox2roi(proposals)
-        roi_feats = self.bbox_roi_extractor(
+        rois = bbox2roi(proposals)              # the proposals are the output of RPN
+        roi_feats = self.bbox_roi_extractor(    # get corresponding feat of proposals.
             x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
         cls_score, bbox_pred = self.bbox_head(roi_feats)
         img_shape = img_meta[0]['img_shape']

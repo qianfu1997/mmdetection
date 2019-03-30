@@ -167,14 +167,6 @@ def get_cnt_from_mask(mask):
             return None
         else:
             return cnt
-    else:
-        return None
-
-def clip_box(bboxes, img_w, img_h):
-    bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_w - 1)
-    bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_h - 1)
-    return bboxes
-
 
 class PhotoMetricDistorionIC(object):
     def __init__(self,
@@ -256,6 +248,7 @@ class RandomRotationIC(object):
         assert img.shape[0] == pad_h and img.shape[1] == pad_w
         # select a random rotate, and generate bbox from masks.
         angle = np.random.rand() * 2 * self.max_angle - self.max_angle
+        # if add angle_flip, better to implement angle test.
         random_anchor = [90, 270]
         angle += random.choice(random_anchor) if \
             bool(self.angle_flip > 0 and np.random.rand() < self.angle_flip) else 0
@@ -270,7 +263,9 @@ class RandomRotationIC(object):
             img_rotation, rotation_matrix, (img_w, img_h), borderMode=cv2.BORDER_REFLECT)
         img[:img_h, :img_w, :] = img_rotation.copy()
 
-        new_gt_bbox, new_gt_mask, new_gt_labels = [], [], []
+        new_gt_bbox = []
+        new_gt_mask = []
+        new_gt_labels = []
         for idx in range(len(gt_masks)):
             mask_rotation = gt_masks[idx][:img_h, :img_w].copy()
             if ver_flip_f:
@@ -278,6 +273,12 @@ class RandomRotationIC(object):
             mask_rotation = cv2.warpAffine(
                 mask_rotation, rotation_matrix, (img_w, img_h), borderMode=cv2.BORDER_REFLECT)
             if np.max(mask_rotation) > 0:
+                # points = np.array(np.where(mask_rotation > 0)).transpose((1, 0))[:, ::-1]
+                # if points.shape[0] > 0:
+                #     _, contours, _ = cv2.findContours(mask_rotation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                #     cnt = contours[0]
+                #     if cnt.shape[0] <= 3:
+                #         continue
                 cnt = get_cnt_from_mask(mask_rotation)
                 if cnt is not None:
                     # generate the bounding boxes
@@ -293,9 +294,16 @@ class RandomRotationIC(object):
             mask_rotation = gt_ignore_masks[idx][:img_h, :img_w].copy()
             if ver_flip_f:
                 mask_rotation = np.flip(mask_rotation, 0)
+            # same as img_rotation
             mask_rotation = cv2.warpAffine(
                 mask_rotation, rotation_matrix, (img_w, img_h), borderMode=cv2.BORDER_REFLECT)
             if np.max(mask_rotation) > 0:
+                # points = np.array(np.where(mask_rotation > 0)).transpose((1, 0))[:, ::-1]
+                # if points.shape[0] > 0:
+                #     _, contours, _ = cv2.findContours(mask_rotation, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                #     cnt = contours[0]
+                #     if cnt.shape[0] <= 3:
+                #         continue
                 cnt = get_cnt_from_mask(mask_rotation)
                 if cnt is not None:
                     box = get_rect_from_cnt(cnt)
@@ -303,7 +311,8 @@ class RandomRotationIC(object):
 
         if len(new_gt_bbox) > 0:
             new_gt_bbox = np.array(new_gt_bbox, dtype=np.float32)
-            new_gt_bbox = clip_box(new_gt_bbox, img_w=img_w, img_h=img_h)
+            new_gt_bbox[:, 0::2] = np.clip(new_gt_bbox[:, 0::2], 0, img_w - 1)
+            new_gt_bbox[:, 1::2] = np.clip(new_gt_bbox[:, 1::2], 0, img_h - 1)
             new_gt_labels = np.array(new_gt_labels, dtype=np.int64)
             new_gt_mask = np.stack(new_gt_mask, axis=0)
         else:
@@ -311,7 +320,8 @@ class RandomRotationIC(object):
             new_gt_labels = np.array([], dtype=np.int64)
         if len(new_gt_ignore_bbox) > 0:
             new_gt_ignore_bbox = np.array(new_gt_ignore_bbox, dtype=np.float32)
-            new_gt_ignore_bbox = clip_box(new_gt_ignore_bbox, img_w=img_w, img_h=img_h)
+            new_gt_ignore_bbox[:, 0::2] = np.clip(new_gt_ignore_bbox[:, 0::2], 0, img_w - 1)
+            new_gt_ignore_bbox[:, 1::2] = np.clip(new_gt_ignore_bbox[:, 1::2], 0, img_h - 1)
         else:
             new_gt_ignore_bbox = np.zeros((0, 4), dtype=np.float32)
 
@@ -374,12 +384,20 @@ class RandomCropIC(object):
             i = random.randint(0, img_h - tar_h) if img_h - tar_h > 0 else 0
             j = random.randint(0, img_w - tar_w) if img_w - tar_w > 0 else 0
 
-        new_gt_bbox, new_gt_mask, new_gt_labels = [], [], []
+        new_gt_bbox = []
+        new_gt_mask = []
+        new_gt_labels = []
         for idx in range(len(gt_masks)):
             """ find the cc, and generate box for cc. """
             mask = gt_masks[idx]
             mask = mask[i:i + tar_h, j:j + tar_w]
             if np.max(mask) > 0:
+                # points = np.array(np.where(mask > 0)).transpose((1, 0))[:, ::-1]
+                # if points.shape[0] > 0:
+                #     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                #     cnt = contours[0]
+                #     if cnt.shape[0] <= 3:
+                #         continue
                 cnt = get_cnt_from_mask(mask)
                 if cnt is not None:
                     # generate the bounding boxes
@@ -396,6 +414,12 @@ class RandomCropIC(object):
             mask = gt_ignore_masks[idx]
             mask = mask[i:i + tar_h, j:j + tar_w]   # mask crop.
             if np.max(mask) > 0:
+                # points = np.array(np.where(mask > 0)).transpose((1, 0))[:, ::-1]
+                # if points.shape[0] > 0:
+                #     _, contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                #     cnt = contours[0]
+                #     if cnt.shape[0] <= 3:
+                #         continue
                 cnt = get_cnt_from_mask(mask)
                 if cnt is not None:
                     box = get_rect_from_cnt(cnt)
@@ -403,7 +427,8 @@ class RandomCropIC(object):
 
         if len(new_gt_bbox) > 0:
             new_gt_bbox = np.array(new_gt_bbox, dtype=np.float32)
-            new_gt_bbox = clip_box(new_gt_bbox, img_w=tar_w, img_h=tar_h)
+            new_gt_bbox[:, 0::2] = np.clip(new_gt_bbox[:, 0::2], 0, tar_w - 1)
+            new_gt_bbox[:, 1::2] = np.clip(new_gt_bbox[:, 1::2], 0, tar_h - 1)
             new_gt_labels = np.array(new_gt_labels, dtype=np.int64)
             new_gt_mask = np.stack(new_gt_mask, axis=0)
         else:
@@ -411,7 +436,8 @@ class RandomCropIC(object):
             new_gt_labels = np.array([], dtype=np.int64)
         if len(new_gt_ignore_bbox) > 0:
             new_gt_ignore_bbox = np.array(new_gt_ignore_bbox, dtype=np.float32)
-            new_gt_ignore_bbox = clip_box(new_gt_ignore_bbox, img_w=tar_w, img_h=tar_h)
+            new_gt_ignore_bbox[:, 0::2] = np.clip(new_gt_ignore_bbox[:, 0::2], 0, tar_w - 1)
+            new_gt_ignore_bbox[:, 1::2] = np.clip(new_gt_ignore_bbox[:, 1::2], 0, tar_h - 1)
         else:
             new_gt_ignore_bbox = np.zeros((0, 4), dtype=np.float32)
 

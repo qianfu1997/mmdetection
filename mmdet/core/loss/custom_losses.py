@@ -83,6 +83,18 @@ def combined_binary_dice_cross_entropy_loss(pred, target, label):
     return combined_loss
 
 
+def bounded_iou_loss(pred, target, eps=1e-3, reduction='mean'):
+    """ implemented from denet: bounded_iou_loss
+    attention: only for guided anchoring.
+        pred: [xc, yc, w, h]
+        target: [x, y, w, h]
+    """
+    assert eps > 0
+    assert pred.size() == target.size() and target.numel() > 0
+
+    return None
+
+
 
 
 

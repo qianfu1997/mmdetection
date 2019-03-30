@@ -35,7 +35,7 @@ class BasicBlock(nn.Module):
                  style='pytorch',
                  with_cp=False,
                  normalize=dict(type='BN'),
-                 dcn=None):
+                 dcn=None):         # dcn indicates whether and how to use deformable conv.
         super(BasicBlock, self).__init__()
         assert dcn is None, "Not implemented yet."
 
@@ -91,7 +91,7 @@ class Bottleneck(nn.Module):
                  downsample=None,
                  style='pytorch',
                  with_cp=False,
-                 normalize=dict(type='BN'),
+                 normalize=dict(type='BN'),     # default use BN.
                  dcn=None):
         """Bottleneck block for ResNet.
         If style is "pytorch", the stride-two layer is the 3x3 conv layer,
@@ -142,19 +142,19 @@ class Bottleneck(nn.Module):
             deformable_groups = dcn.get('deformable_groups', 1)
             if not self.with_modulated_dcn:
                 conv_op = DeformConv
-                offset_channels = 18
+                offset_channels = 18        # 3x3x2
             else:
                 conv_op = ModulatedDeformConv
-                offset_channels = 27
-            self.conv2_offset = nn.Conv2d(
+                offset_channels = 27        # 3x3x3
+            self.conv2_offset = nn.Conv2d(              # here to predict offset field.
                 planes,
-                deformable_groups * offset_channels,
+                deformable_groups * offset_channels,    # use 3x3 conv to predict offset field.
                 kernel_size=3,
                 stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation)
-            self.conv2 = conv_op(
-                planes,
+            self.conv2 = conv_op(                       # use DeformConv to rearrange the image matrix
+                planes,                                 # and implement standard 3x3 conv to rearranged map.
                 planes,
                 kernel_size=3,
                 stride=self.conv2_stride,

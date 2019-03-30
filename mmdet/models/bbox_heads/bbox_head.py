@@ -38,6 +38,7 @@ class BBoxHead(nn.Module):
         if self.with_avg_pool:
             self.avg_pool = nn.AvgPool2d(roi_feat_size)
         else:
+            # in_channels = in_channels * (roi_feat_size ** 2) for fc.
             in_channels *= (self.roi_feat_size * self.roi_feat_size)
         if self.with_cls:
             self.fc_cls = nn.Linear(in_channels, num_classes)
@@ -69,6 +70,7 @@ class BBoxHead(nn.Module):
         pos_gt_bboxes = [res.pos_gt_bboxes for res in sampling_results]
         pos_gt_labels = [res.pos_gt_labels for res in sampling_results]
         reg_classes = 1 if self.reg_class_agnostic else self.num_classes
+        # targ
         cls_reg_targets = bbox_target(
             pos_proposals,
             neg_proposals,

@@ -16,6 +16,7 @@ class RPNHead(AnchorHead):
         super(RPNHead, self).__init__(2, in_channels, **kwargs)
 
     def _init_layers(self):
+        # a 3x3 conv.
         self.rpn_conv = nn.Conv2d(
             self.in_channels, self.feat_channels, 3, padding=1)
         self.rpn_cls = nn.Conv2d(self.feat_channels,
@@ -29,9 +30,9 @@ class RPNHead(AnchorHead):
 
     def forward_single(self, x):
         x = self.rpn_conv(x)
-        x = F.relu(x, inplace=True)
+        x = F.relu(x, inplace=True)     # do not normalize.
         rpn_cls_score = self.rpn_cls(x)
-        rpn_bbox_pred = self.rpn_reg(x)
+        rpn_bbox_pred = self.rpn_reg(x) # reg are the dx, dy, dw, dh of all anchor of a point.
         return rpn_cls_score, rpn_bbox_pred
 
     def loss(self, cls_scores, bbox_preds, gt_bboxes, img_metas, cfg):
@@ -41,9 +42,9 @@ class RPNHead(AnchorHead):
             loss_rpn_cls=losses['loss_cls'], loss_rpn_reg=losses['loss_reg'])
 
     def get_bboxes_single(self,
-                          cls_scores,
-                          bbox_preds,
-                          mlvl_anchors,
+                          cls_scores,       #
+                          bbox_preds,       # delta_preds.
+                          mlvl_anchors,     # anchors of all levels.
                           img_shape,
                           scale_factor,
                           cfg,

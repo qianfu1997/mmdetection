@@ -27,6 +27,7 @@ ArT_sp_val_data_root = data_root + 'ArT/sp_val_art_images/'
 ArT_trainset_path = data_root + 'ArT/sp_train_art_images/'
 ArT_valset_path = data_root + 'ArT/sp_val_art_images/'
 
+
 def rewrite_art_annotations(image_path, ann_file, new_detail_ann,
                             img_save_path):
     """

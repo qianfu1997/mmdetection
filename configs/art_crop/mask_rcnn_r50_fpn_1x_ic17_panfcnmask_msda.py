@@ -25,7 +25,7 @@ model = dict(
         target_stds=[1.0, 1.0, 1.0, 1.0],
         use_sigmoid_cls=True),
     bbox_roi_extractor=dict(
-        type='SingleRoIExtractor',
+        type='SingleRoIExtractor',          #
         roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
@@ -40,12 +40,12 @@ model = dict(
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
     mask_roi_extractor=dict(
-        type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2), # ori 14
+        type='SingleRoIExtractor',       #
+        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),  # ori 14
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     mask_head=dict(
-        type='FCNMaskHead',
+        type='FCNMaskHeadPAN',          # change to FCNMaskHeadPAN
         num_convs=4,
         in_channels=256,
         conv_out_channels=256,

@@ -1,19 +1,22 @@
 # model settings
+normalize = dict(type='GN', num_groups=32, frozen=False)
 model = dict(
     type='MaskRCNN',
-    pretrained='modelzoo://resnet50',
+    pretrained='open-mmlab://detectron/resnet50_gn',
     backbone=dict(
         type='ResNet',
         depth=50,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
-        style='pytorch'),
+        style='pytorch',
+        normalize=normalize),
     neck=dict(
         type='FPN',
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
-        num_outs=5),
+        num_outs=5,
+        normalize=normalize),
     rpn_head=dict(
         type='RPNHead',
         in_channels=256,
@@ -41,15 +44,16 @@ model = dict(
         reg_class_agnostic=False),
     mask_roi_extractor=dict(
         type='SingleRoIExtractor',
-        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2), # ori 14
+        roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     mask_head=dict(
         type='FCNMaskHead',
-        num_convs=4,
+        num_convs=4,                # ori 4 change to 8
         in_channels=256,
         conv_out_channels=256,
-        num_classes=2))  # ori 81,change 2
+        num_classes=2,
+        normalize=normalize)) # ori 81,change 2
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -82,7 +86,7 @@ train_cfg = dict(
             pos_fraction=0.25,
             neg_pos_ub=-1,
             add_gt_as_proposals=True),
-        mask_size=28,                   # default 28
+        mask_size=28,
         pos_weight=-1,
         debug=False))
 test_cfg = dict(
@@ -99,7 +103,7 @@ test_cfg = dict(
         max_per_img=100,
         mask_thr_binary=0.5))
 # dataset settings
-dataset_type = 'ArtCropDataset'
+dataset_type = 'ArtDataset'
 data_root = 'data/ArT/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
@@ -110,26 +114,12 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/sp_train_art_labels.json',
         img_prefix=data_root + 'sp_train_art_images/',
-        img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
-                   (2560, 608), (2560, 576), (2560, 992), (2560, 1024)], # (1333, 800),# (576, 1024)
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)],       # version 2 around 928
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)], # version 3 around 1024
+        img_scale=(1333, 800),# (1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=True,
-        extra_aug=dict(
-            random_rotate=dict(
-              max_angle=5,
-              ver_flip_ratio=0.0,        # the flip ratio
-              angle_flip=0.0),         # default: False, for angle_flip try True
-            random_crop=dict(
-                crop_size=(800, 800),
-                pad=True)
-        ),
         with_label=True),
     val=dict(
         type=dataset_type,
@@ -146,7 +136,7 @@ data = dict(
         type=dataset_type,
         ann_file=data_root + 'annotations/sp_val_art_labels.json',
         img_prefix=data_root + 'sp_val_art_images/',
-        img_scale=(2560, 800),
+        img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0,
@@ -177,7 +167,7 @@ log_config = dict(
 total_epochs = 24
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
-work_dir = './work_dirs/mask_rcnn_r50_fpn_1x'
+work_dir = './work_dirs/mask_rcnn_r50_fpn_2x_gn'
 load_from = None
 resume_from = None
 workflow = [('train', 1)]

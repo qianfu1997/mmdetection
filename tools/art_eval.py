@@ -49,8 +49,6 @@ def parse_args():
 def get_union(pa, pb):
     pa_area = pa.area()
     pb_area = pb.area()
-    # return pa_area + pb_area - get_intersection(pa, pb)
-    # return pa_area + pb_area - get_intersection()
     return pa_area + pb_area - get_intersection(pa, pb)
 
 
@@ -85,9 +83,6 @@ def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
         # compare each pred_polygon with each gt_polygon
         for pred_polygon_pro in pred_ann:
             pred_polygon = np.array(pred_polygon_pro["points"])   # shape: [n, 2]
-            # pred_prob = np.float32(pred_polygon_pro["confidence"])
-            # if pred_prob < confidence:      # confidence threshold.
-            #     continue
             pred_polygon = plg.Polygon(pred_polygon)
             flag = False
             is_ignore = False
@@ -423,7 +418,7 @@ if __name__ == '__main__':
 
     elif args.eval_f == 'debug':
         name = evaluation(submit_file=args.submit_file, eval_ann=args.gt_file,
-                          threshold=args.nms_thr, confidence=args.con_thr,debug_mode=True)
+                          threshold=args.nms_thr, confidence=args.con_thr, debug_mode=True)
         print(name)
         det_evaluation(submit_file=args.submit_file, eval_ann=args.gt_file, iou_thr=args.nms_thr,
                        debug_mode=True, debug_name=name)

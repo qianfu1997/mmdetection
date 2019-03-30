@@ -4,7 +4,9 @@ from .. import roi_align_cuda
 
 
 class RoIAlignFunction(Function):
-
+    """ for staticmethod, do not use self to infer the method itself.
+        use ctx instead.
+    """
     @staticmethod
     def forward(ctx, features, rois, out_size, spatial_scale, sample_num=0):
         if isinstance(out_size, int):
