@@ -147,24 +147,64 @@ class FCNMaskHead(nn.Module):
             # the bbox are are fit to the rescaled image.
             bbox = (bboxes[i, :] / scale_factor).astype(np.int32)
             label = labels[i]
-            w = max(bbox[2] - bbox[0] + 1, 1)
-            h = max(bbox[3] - bbox[1] + 1, 1)
-
             if not self.class_agnostic:
                 mask_pred_ = mask_pred[i, label, :, :]
             else:
                 mask_pred_ = mask_pred[i, 0, :, :]
+
+            # here to add expand mask and expand bbox.
+            paded_mask_, scale = self.expand_mask(mask_pred_)
+            bbox = self.expand_bbox(bbox, scale)
+
+            w = max(bbox[2] - bbox[0] + 1, 1)
+            h = max(bbox[3] - bbox[1] + 1, 1)
+
             im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
 
-            bbox_mask = mmcv.imresize(mask_pred_, (w, h))   # expand bbox before.
+            bbox_mask = mmcv.imresize(paded_mask_, (w, h))   # expand bbox before.
             bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
                 np.uint8)
-            im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
+            # add according to maskrcnn benchmark
+            x0 = max(bbox[0], 0)
+            x1 = min(bbox[2] + 1, img_w)
+            y0 = max(bbox[1], 0)
+            y1 = min(bbox[3] + 1, img_h)
+
+            # im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask[]
+            im_mask[y0:y1, x0:x1] = bbox_mask[(y0 - bbox[1]):(y1 - bbox[1]),
+                                    (x0 - bbox[0]) : (x1 - bbox[0])]
             rle = mask_util.encode(
                 np.array(im_mask[:, :, np.newaxis], order='F'))[0]
             cls_segms[label - 1].append(rle)
 
         return cls_segms
+
+    def expand_mask(self, mask, padding=1):
+        """ add by sxg according to maskrcnnbenchmark """
+        w = mask.shape[-1]
+        pad2 = 2 * padding
+        scale = float(w + pad2) / w
+        paded_mask = np.zeros((w + pad2, w + pad2), dtype=np.float32)
+        paded_mask[padding:-padding, padding:-padding] = mask
+        return paded_mask, scale
+
+    def expand_bbox(self, bbox, scale):
+        """ add by sxg according to maskrcnnbencnmark """
+        w_half = (bbox[2] - bbox[0]) * 0.5
+        h_half = (bbox[3] - bbox[1]) * 0.5
+        x_c = (bbox[2] + bbox[0]) * 0.5
+        y_c = (bbox[3] + bbox[1]) * 0.5
+
+        w_half *= scale
+        h_half *= scale
+
+        bbox_exp = np.zeros_like(bbox)
+        bbox_exp[0] = x_c - w_half
+        bbox_exp[2] = x_c + w_half
+        bbox_exp[1] = y_c - h_half
+        bbox_exp[3] = y_c + h_half
+        return bbox_exp
+
 
 
 

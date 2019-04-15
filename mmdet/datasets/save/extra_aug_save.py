@@ -145,16 +145,16 @@ class RandomCrop(object):
 
 
 def get_rect_from_cnt(cnt):
-    # cnt_points = np.array(cnt).reshape(-1, 2).astype(np.int64)
-    # box = np.zeros(4)
-    # box[:2] = np.min(cnt_points, axis=0)
-    # box[2:] = np.max(cnt_points, axis=0)
-    rect = cv2.minAreaRect(cnt)
-    rect = cv2.boxPoints(rect)
-    rect = np.array(np.int0(rect)).reshape(-1, 2).astype(np.int64)
+    cnt_points = np.array(cnt).reshape(-1, 2).astype(np.int64)
     box = np.zeros(4)
-    box[:2] = np.min(rect, axis=0)
-    box[2:] = np.max(rect, axis=0)
+    box[:2] = np.min(cnt_points, axis=0)
+    box[2:] = np.max(cnt_points, axis=0)
+    # rect = cv2.minAreaRect(cnt)
+    # rect = cv2.boxPoints(rect)
+    # rect = np.array(np.int0(rect)).reshape(-1, 2).astype(np.int64)
+    # box = np.zeros(4)
+    # box[:2] = np.min(rect, axis=0)
+    # box[2:] = np.max(rect, axis=0)
     return box
 
 
