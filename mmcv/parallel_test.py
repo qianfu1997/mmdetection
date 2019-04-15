@@ -3,7 +3,7 @@ import multiprocessing
 import torch
 
 import mmcv
-from .checkpoint import load_checkpoint
+from mmcv.runner.checkpoint import load_checkpoint
 
 import cv2
 import os.path as osp
@@ -97,7 +97,7 @@ def worker_func_art(model_cls, model_kwargs, checkpoint, dataset, data_func,
             data_dict = data_func(data, gpu_id)
             img_metas = data_dict['img_meta'][0]
             img_metas_0 = img_metas[0]
-            is_aug = bool(len(img_metas) > 1)
+            is_aug = bool(len(data['img']) > 1)
             h, w, _ = img_metas_0['img_shape']
             ori_h, ori_w, _ = img_metas_0['ori_shape']
             filename = img_metas_0['filename']
@@ -115,7 +115,7 @@ def worker_func_art(model_cls, model_kwargs, checkpoint, dataset, data_func,
                 segm_scores = np.asarray(vs_bbox_result[:, -1])
                 segms = mmcv.concat_list(segm_result)
                 # the bboxes returned by processor are fit to the original images.
-                if is_aug:
+                if not is_aug:
                     # print('1-metas:{:d}'.format(len(img_metas)))
                     # single simple test the predicted mask use the size of rescaled img.
                     pred_bboxes, pred_bbox_scores = post_processor.process(segms, segm_scores,

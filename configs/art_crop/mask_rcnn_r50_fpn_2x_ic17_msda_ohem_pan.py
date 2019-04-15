@@ -77,7 +77,7 @@ train_cfg = dict(
             min_pos_iou=0.5,
             ignore_iof_thr=-1),
         sampler=dict(
-            type='RandomSampler',
+            type='OHEMSampler',       # change 2 ohem
             num=512,
             pos_fraction=0.25,
             neg_pos_ub=-1,
@@ -112,10 +112,6 @@ data = dict(
         img_prefix=data_root + 'sp_train_art_images/',
         img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
                    (2560, 608), (2560, 576), (2560, 992), (2560, 1024)], # (1333, 800),# (576, 1024)
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)],       # version 2 around 928
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)], # version 3 around 1024
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
@@ -155,7 +151,7 @@ data = dict(
         test_mode=True))
 # optimizer
 # 8GPU 0.02 and 4 GPU 0.01 2 GPU 0.005
-optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(

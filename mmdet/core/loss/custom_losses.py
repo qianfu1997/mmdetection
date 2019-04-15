@@ -61,6 +61,12 @@ def weighted_mask_binary_dice_loss(pred, target, label, weight):
     return (1 - torch.mean(d))[None]
 
 
+def ohem_mask_binary_dice_loss(pred, target, label, ratio=3):
+    """
+    use ohem + dice loss to train the mask branch, select positive
+    """
+    pass
+
 def combined_binary_dice_cross_entropy_loss(pred, target, label):
     """ combine the binary dice loss and binary cross entropy loss """
     num_rois = pred.size()[0]
@@ -94,6 +100,8 @@ def bounded_iou_loss(pred, target, eps=1e-3, reduction='mean'):
 
     return None
 
+
+""" implement GIoU according to paper """
 
 
 

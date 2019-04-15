@@ -256,7 +256,7 @@ class AnchorHead(nn.Module):
             # and generate proposals according to the cfg.
             # bbox_pred_list is the feature map with 4 channels, assign anchors
             # to bbox_pred_list to generate proposals.
-            # just generate proposals, do not assign and
+            # just generate proposals, do not assign
             proposals = self.get_bboxes_single(cls_score_list, bbox_pred_list,
                                                mlvl_anchors, img_shape,
                                                scale_factor, cfg, rescale)

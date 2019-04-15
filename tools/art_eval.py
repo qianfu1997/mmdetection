@@ -15,6 +15,7 @@ import os.path as osp
 import json
 from collections import OrderedDict
 import Polygon as plg
+import cv2
 
 
 """ load submit.json and compare with eval annotations. 
@@ -26,12 +27,14 @@ import Polygon as plg
 """
 
 
-eval_ann_file = '../data/IC19/LSVT/annotations/sp_val_eval_labels.json'
+eval_ann_file = '../data/LSVT/annotations/sp_val_eval_labels.json'
 submit_path = '../submit/lsvt/'
-art_eval_ann_file = '../data/IC19/ArT/annotations/sp_val_eval_labels.json'
+art_eval_ann_file = '../data/ArT/annotations/sp_val_eval_labels.json'
 art_submit_path = '../submit/art/'
+art_val_data_root = '/home/data1/IC19/ArT/sp_val_art_images/'
 
 debug_path = '../visualization/debug/'
+stastic_path = '../visualization/stastics/'
 
 
 def parse_args():
@@ -39,9 +42,15 @@ def parse_args():
     parser.add_argument('--submit_file', type=str, default=None)
     parser.add_argument('--gt_file', type=str, default=None)
     parser.add_argument('--nms_thr', type=float, default=0.5)
-    parser.add_argument('--con_thr', type=float, default=0.3)
+    parser.add_argument('--con_thr', type=float, default=0.0)
     parser.add_argument('--eval_f', type=str, default='ctw',
                         help='ctw or xez')
+    parser.add_argument('--stastics', action='store_true')
+    parser.add_argument('--search', action='store_true')        # search best h1 score
+    # for search mode
+    parser.add_argument('--low_score', default=0.5, type=float)
+    parser.add_argument('--high_score', default=0.95, type=float)
+    parser.add_argument('--step', type=float, default=0.05)
     args = parser.parse_args()
     return args
 
@@ -60,8 +69,28 @@ def get_intersection(pa, pb):
         return pInt.area()
 
 
-def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
-               debug_mode=False):
+# get scales of polygon
+def get_rescale_factor(name, long_size=2560, short_size=800, keep_ratio=True):
+    name = osp.join(art_val_data_root, name.replace('res_', 'gt_') + '.jpg')
+    img = cv2.imread(name)
+    h, w = img.shape[:2]
+    if keep_ratio:
+        scale_factor = min(
+            long_size * 1.0 / max(h, w),
+            short_size * 1.0 / min(h, w),
+        )
+    else:
+        scale_factor = [
+            long_size * 1.0 / max(h, w),
+            short_size * 1.0 / min(h, w)
+        ]
+        scale_factor = [scale_factor[0], scale_factor[1]] if h >= w else [scale_factor[1], scale_factor[0]]
+        scale_factor = np.array(scale_factor).astype(np.float32)
+    return scale_factor
+
+
+def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.0,
+               debug_mode=False, stastics_mode=False):
     assert osp.isfile(submit_file)
     assert osp.isfile(eval_ann)
     with open(eval_ann, 'r', encoding='utf-8') as f:
@@ -70,6 +99,7 @@ def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
         preds = json.loads(f.read(), object_pairs_hook=OrderedDict)
 
     tp, fp, npos = 0, 0, 0
+    lost_gt_polygon = []
     """ for validation the annotation is same as the trainset. """
     for name, pred_ann in preds.items():
         gt_annotation = gt_annotations[name]    # is a list
@@ -84,6 +114,9 @@ def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
         for pred_polygon_pro in pred_ann:
             pred_polygon = np.array(pred_polygon_pro["points"])   # shape: [n, 2]
             pred_polygon = plg.Polygon(pred_polygon)
+            # set the score threshold
+            if pred_polygon_pro["confidence"] < confidence:
+                continue
             flag = False
             is_ignore = False
 
@@ -106,6 +139,20 @@ def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
             else:
                 fp += 1.0
 
+        if stastics_mode:
+            """ calculate all lost gt bboxes """
+            scale_factor = get_rescale_factor(name)
+            for gt_id, gt_polygon_tran in enumerate(gt_annotation):
+                gt_polygon = np.array(gt_polygon_tran["points"]).reshape(-1, 2).astype(np.float32)
+                # needed to
+                gt_polygon = (gt_polygon * scale_factor).astype(np.int64)
+                # gt_polygon_area = plg.Polygon(gt_polygon).area()
+                ltop = np.min(gt_polygon, axis=0)
+                rbottom = np.max(gt_polygon, axis=0)
+                gt_polygon_area = (rbottom[0] - ltop[0]) * (rbottom[1] - ltop[1])
+                if (gt_id not in cover) and (gt_polygon_tran["illegibility"] is False):
+                    lost_gt_polygon.append(gt_polygon_area)
+
         if debug_mode:
             precision = tp / (fp + tp)
             recall = tp / npos
@@ -118,6 +165,25 @@ def evaluation(submit_file, eval_ann, threshold=0.5, confidence=0.3,
     hmean = 0 if (precision + recall) == 0 else 2 * precision * recall / (precision + recall)
 
     print("p: {:f}  r: {:f}  h: {:f}".format(precision, recall, hmean))
+
+    if stastics_mode:
+        """ print """
+        import matplotlib as mpl
+        mpl.use('Agg')
+        import matplotlib.pyplot as plt
+        if not os.path.exists(stastic_path):
+            os.makedirs(stastic_path)
+        if len(lost_gt_polygon) > 0:
+            lost_gt_polygon = np.asarray(lost_gt_polygon)
+            plt.hist(lost_gt_polygon[lost_gt_polygon < 10000], bins='auto', histtype='bar')
+            plt.title('lost gt bbox area')
+            plt.xlabel('area')
+            plt.ylabel('frequency')
+            plt.savefig(os.path.join(stastic_path, 'stastics_plot.jpg'))
+            print('totalnum: {:d}; min: {:f}; max: {:f}'.format(len(lost_gt_polygon), min(lost_gt_polygon), max(lost_gt_polygon)))
+            print('write down {}'.format(os.path.join(stastic_path, 'stastics_plot.jp')))
+
+    return hmean
 
 
 def sigma_calculation(det_p, gt_p):
@@ -410,11 +476,25 @@ def det_evaluation(submit_file, eval_ann, iou_thr=0.5, debug_mode=False, debug_n
     temp = ('Precision:_%s_______/Recall:_%s/Hmean:_%s\n' % (str(precision), str(recall), str(hmean)))
     print(temp)
 
+
 if __name__ == '__main__':
     args = parse_args()
     if args.eval_f == 'ctw':
-        eval_tool = evaluation(submit_file=args.submit_file, eval_ann=args.gt_file,
-                               threshold=args.nms_thr, confidence=args.con_thr)
+        if not args.search:
+            hmean = evaluation(submit_file=args.submit_file, eval_ann=args.gt_file,
+                               threshold=args.nms_thr, confidence=args.con_thr,
+                               stastics_mode=args.stastics)
+        else:
+            best = 0
+            best_conf = args.low_score
+            for conf in np.arange(args.low_score, args.high_score, args.step):
+                hmean = evaluation(submit_file=args.submit_file, eval_ann=args.gt_file,
+                                   threshold=args.nms_thr, confidence=conf,
+                                   stastics_mode=args.stastics)
+                if hmean > best:
+                    best = hmean
+                    best_conf = conf
+            print('conf {:.4f}: best-hmean:{:.6f}'.format(best_conf, best))
 
     elif args.eval_f == 'debug':
         name = evaluation(submit_file=args.submit_file, eval_ann=args.gt_file,

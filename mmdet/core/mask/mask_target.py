@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import mmcv
 
-
+""" here to genreate mask target for mask segmentation. """
 def mask_target(pos_proposals_list, pos_assigned_gt_inds_list, gt_masks_list,
                 cfg):
     cfg_list = [cfg for _ in range(len(pos_proposals_list))]
@@ -28,8 +28,10 @@ def mask_target_single(pos_proposals, pos_assigned_gt_inds, gt_masks, cfg):
             # mask is uint8 both before and after resizing
             # for art, there are some boxes that overlap the boundaries.
             # so lead to exceptions.
+            # first resize the target to the crop size, this can save the memory.
+            # but can cause the loss of information?
             target = mmcv.imresize(gt_mask[y1:y1 + h, x1:x1 + w],
-                                   (mask_size, mask_size))
+                                   (mask_size, mask_size))      # default use bilinear.
             mask_targets.append(target)
         mask_targets = torch.from_numpy(np.stack(mask_targets)).float().to(
             pos_proposals.device)

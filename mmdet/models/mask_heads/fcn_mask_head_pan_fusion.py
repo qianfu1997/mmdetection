@@ -13,6 +13,7 @@ from mmdet.core import mask_cross_entropy, mask_target
 class FCNMaskHeadFusionPAN(nn.Module):
     """ a PAN version mask head.
         combine the fc layer's features.
+        fuse
     """
 
     def __init__(self,
@@ -26,7 +27,8 @@ class FCNMaskHeadFusionPAN(nn.Module):
                  num_classes=81,
                  class_agnostic=False,
                  normalize=None,
-                 num_fc_convs=2):
+                 num_fc_convs=2,
+                 len_strides=4):        # roi are from 4 layers.
         super(FCNMaskHeadFusionPAN, self).__init__()
         if upsample_method not in [None, 'deconv', 'nearest', 'bilinear']:
             raise ValueError(
@@ -41,20 +43,29 @@ class FCNMaskHeadFusionPAN(nn.Module):
         self.upsample_ratio = upsample_ratio
         self.num_classes = num_classes
         self.num_fc_convs = num_fc_convs
+        self.len_strides = len_strides
         self.class_agnostic = class_agnostic
         self.normalize = normalize
         self.with_bias = normalize is None
 
-        self.convs = nn.ModuleList()
-        for i in range(self.num_convs):
-            in_channels = (self.in_channels
-                           if i == 0 else self.conv_out_channels)
+        """ using first conv to fuse """
+        self.conv1 = nn.ModuleList()
+        for i in range(self.len_strides):       # for each featmap stride
             padding = (self.conv_kernel_size - 1) // 2
-            # if the last layer do not relu.
-            # activation = 'relu' if i < self.num_convs - 1 else None
-            self.convs.append(
-                ConvModule(     # init already.
-                    in_channels,
+            self.conv1.append(
+                ConvModule(
+                    self.in_channels,
+                    self.conv_out_channels,
+                    self.conv_kernel_size,
+                    padding=padding,
+                    normalize=normalize,
+                    bias=self.with_bias))
+        self.fcn_convs = nn.ModuleList()
+        for i in range(3):
+            padding = (self.conv_kernel_size - 1) // 2
+            self.fcn_convs.append(
+                ConvModule(
+                    self.conv_out_channels,
                     self.conv_out_channels,
                     self.conv_kernel_size,
                     padding=padding,
@@ -63,11 +74,9 @@ class FCNMaskHeadFusionPAN(nn.Module):
         # above is the standard branch
         self.fc_convs = nn.ModuleList()
         for i in range(self.num_fc_convs):
-            out_channels_t = (self.conv_out_channels
-                            if i != self.num_fc_convs - 1 else self.conv_out_channels // 2)
+            out_channels_t = self.conv_out_channels if i < self.num_fc_convs - 1 \
+                else self.conv_out_channels // 2
             padding = (self.conv_kernel_size - 1) // 2
-            # last layer do not use activation
-            # activation = 'relu' if i < self.num_fc_convs - 1 else None
             self.fc_convs.append(
                 ConvModule(
                     self.conv_out_channels,
@@ -76,11 +85,8 @@ class FCNMaskHeadFusionPAN(nn.Module):
                     padding=padding,
                     normalize=normalize,
                     bias=self.with_bias))
-
         fc_inchannels = self.conv_out_channels // 2
         fc_inchannels *= (self.roi_feat_size * self.roi_feat_size)
-        # same size with the deconv maps. ( according to paper)
-        # fusion before upsample according to official implementation.
         fc_outchannels = (self.roi_feat_size * self.roi_feat_size)
         self.mask_fc = nn.Linear(fc_inchannels, fc_outchannels)
         # self.relu_fc = nn.ReLU(inplace=True)
@@ -113,25 +119,27 @@ class FCNMaskHeadFusionPAN(nn.Module):
         nn.init.constant_(self.mask_fc.bias, 0)
 
     def forward(self, x):
-        y = x
-        for idx, conv in enumerate(self.convs):
-            x = conv(x)
-            if idx == len(self.convs) - 2:      #
-                y = x
-                for conv_ in self.fc_convs:
-                    y = conv_(y)
-        # fusion before deconv according to official implementation.
+        assert x.size(1) == self.in_channels * self.len_strides
+        input = [x[:, i * self.in_channels: (i + 1) * self.in_channels, :, :]
+                 for i in range(self.len_strides)]
+        for i in range(self.len_strides):
+            input[i] = self.conv1[i](input[i])
+        for i in range(1, self.len_strides):
+            input[0] = torch.max(input[0], input[i])
+        for i in range(2):
+            input[0] = self.fcn_convs[i](input[0])
+        y = input[0]
+        input[0] = self.fcn_convs[-1](input[0])
+        for conv in self.fc_convs:
+            y = conv(y)
         y = y.view(y.size(0), -1)
-        y_fc = self.mask_fc(y).view(y.size(0), 1, x.size(2), x.size(3))
-        y_fc = y_fc.repeat(1, self.conv_out_channels, 1, 1)
-        x = y_fc + x
-        # x = self.relu_fc(x)
-        if self.upsample is not None:
+        y_fc = self.mask_fc(y).view(y.size(0), 1, input[0].size(2), input[0].size(3))
+        x = y_fc.repeat(1, self.conv_out_channels, 1, 1) + input[0]
+        # x = self.relu_fc(input[0])
+        if self.upsample_method is not None:
             x = self.upsample(x)
             if self.upsample_method == 'deconv':
                 x = self.relu(x)
-        # fusion: element-wise sum fusion after deconv according to paper
-        # x = y_fc + x
         mask_pred = self.conv_logits(x)
         return mask_pred
 

@@ -21,7 +21,7 @@ def bbox2delta(proposals, gt, means=[0, 0, 0, 0], stds=[1, 1, 1, 1]):
     # (gx - proposal_x) / proposal_weight
     dx = (gx - px) / pw         # gx = dx(predicted) * pw(the fixed) + px(the fixed)
     dy = (gy - py) / ph
-    dw = torch.log(gw / pw)     # dw = log(gw / pw)
+    dw = torch.log(gw / pw)     # dw = log(gw / pw) select the
     dh = torch.log(gh / ph)     # dh = log(gh / ph)
     deltas = torch.stack([dx, dy, dw, dh], dim=-1)
 
@@ -66,6 +66,7 @@ def delta2bbox(rois,                    # rois are the corresponding anchors (x,
         y1 = y1.clamp(min=0, max=max_shape[0] - 1)
         x2 = x2.clamp(min=0, max=max_shape[1] - 1)
         y2 = y2.clamp(min=0, max=max_shape[0] - 1)
+    # stack last dim, as x1, x2, y1, y2 have size [:, 1]
     bboxes = torch.stack([x1, y1, x2, y2], dim=-1).view_as(deltas)
     return bboxes
 
@@ -118,12 +119,14 @@ def bbox2roi(bbox_list):
     rois_list = []
     for img_id, bboxes in enumerate(bbox_list):
         if bboxes.size(0) > 0:
+            # contains the img_inds.
             img_inds = bboxes.new_full((bboxes.size(0), 1), img_id)
+            # the first dim is the img id and the last 4 dim are bboxes.
             rois = torch.cat([img_inds, bboxes[:, :4]], dim=-1)
         else:
             rois = bboxes.new_zeros((0, 5))
         rois_list.append(rois)
-    rois = torch.cat(rois_list, 0)
+    rois = torch.cat(rois_list, 0)      # concat
     return rois
 
 

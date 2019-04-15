@@ -30,6 +30,7 @@ class ImageTransform(object):
             img, scale_factor = mmcv.imrescale(img, scale, return_scale=True)
         else:
             # rescale the img and store the scale_factor.
+            # use np.array to store the scales.
             img, w_scale, h_scale = mmcv.imresize(
                 img, scale, return_scale=True)
             scale_factor = np.array([w_scale, h_scale, w_scale, h_scale],
@@ -98,13 +99,19 @@ class MaskTransform(object):
     2. flip the masks (if needed)
     3. pad the masks (if needed)
     """
+    """ add for do not keep ratio version, if scale_factor is np.array(4,),
+        then, select first two factor to resize the mask. 
+    """
 
     def __call__(self, masks, pad_shape, scale_factor, flip=False):
-        masks = [
+
+        masks = [         # ori version
             # to resize mask, only use nearest. do not use bilinear.
+            # will deal with gt_ignore_mask together.
             mmcv.imrescale(mask, scale_factor, interpolation='nearest')
             for mask in masks
         ]
+
         if flip:
             masks = [mask[:, ::-1] for mask in masks]
         padded_masks = [

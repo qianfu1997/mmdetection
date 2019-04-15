@@ -12,7 +12,7 @@ model = dict(
         frozen_stages=1,
         style='pytorch'),
     neck=dict(
-        type='FPN',
+        type='PAN',                         # change to PAN
         in_channels=[256, 512, 1024, 2048],
         out_channels=256,
         num_outs=5),
@@ -27,7 +27,7 @@ model = dict(
         target_stds=[1.0, 1.0, 1.0, 1.0],
         use_sigmoid_cls=True),
     bbox_roi_extractor=dict(
-        type='SingleRoIExtractor',
+        type='MultiRoIExtractor',                  # change to multi-layer
         roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
@@ -37,21 +37,21 @@ model = dict(
         in_channels=256,
         fc_out_channels=1024,
         roi_feat_size=7,
-        num_classes=81,
+        num_classes=2,                            # change to 2.
         target_means=[0., 0., 0., 0.],
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
     mask_roi_extractor=dict(
-        type='SingleRoIExtractor',
+        type='MultiRoIExtractor',
         roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     mask_head=dict(
-        type='FCNMaskHead',
+        type='FCNMaskHeadPAN',                     # change to PAN
         num_convs=4,
         in_channels=256,
         conv_out_channels=256,
-        num_classes=81))
+        num_classes=2))
 # model training and testing settings
 train_cfg = dict(
     rpn=dict(
@@ -101,8 +101,8 @@ test_cfg = dict(
         max_per_img=100,
         mask_thr_binary=0.5))
 # dataset settings
-dataset_type = 'CocoDataset'
-data_root = 'data/coco/'
+dataset_type = 'ArtCropDataset'
+data_root = 'data/ArT/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
@@ -110,19 +110,29 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_train2017.json',
-        img_prefix=data_root + 'train2017/',
-        img_scale=(1333, 800),
+        ann_file=data_root + 'annotations/sp_train_art_labels.json',
+        img_prefix=data_root + 'sp_train_art_images/',
+        img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
+                   (2560, 608), (2560, 576), (2560, 992), (2560, 1024)],  # (1333, 800),# (576, 1024)
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=True,
+        extra_aug=dict(
+            random_rotate=dict(
+              max_angle=5,
+              ver_flip_ratio=0.0,        # the flip ratio
+              angle_flip=0.0),         # default: False, for angle_flip try True
+            random_crop=dict(
+                crop_size=(800, 800),
+                pad=True)
+        ),
         with_label=True),
     val=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        ann_file=data_root + 'annotations/sp_val_art_labels.json',
+        img_prefix=data_root + 'sp_val_art_images/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
@@ -132,8 +142,8 @@ data = dict(
         with_label=True),
     test=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/instances_val2017.json',
-        img_prefix=data_root + 'val2017/',
+        ann_file=data_root + 'annotations/sp_val_art_labels.json',
+        img_prefix=data_root + 'sp_val_art_images/',
         img_scale=(1333, 800),
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
@@ -150,7 +160,7 @@ lr_config = dict(
     warmup='linear',
     warmup_iters=500,
     warmup_ratio=1.0 / 3,
-    step=[8, 11])
+    step=[32, 44])
 checkpoint_config = dict(interval=1)
 # yapf:disable
 log_config = dict(
@@ -161,7 +171,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 12
+total_epochs = 48
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/mask_rcnn_r50_fpn_1x'

@@ -123,19 +123,18 @@ data = dict(
         with_mask=True,
         with_crowd=True,
         extra_aug=dict(
-            photo_metric_distorion=dict(
-                brightness_delta=32,
-                contrast_range=(0.5, 1.5),
-                saturation_range=(0.5, 1.5),
-                hue_delta=18
-            ),
             random_rotate=dict(
               max_angle=5,
               ver_flip_ratio=0.0,        # the flip ratio
               angle_flip=0.5),         # default: False, for angle_flip try True
             random_crop=dict(
                 crop_size=(800, 800),
-                pad=True)
+                pad=True),
+            photo_metric_distortion=dict(
+                brightness_delta=32,
+                contrast_range=(0.5, 1.5),
+                saturation_range=(0.5, 1.5),
+                hue_delta=18)
         ),
         with_label=True),
     val=dict(

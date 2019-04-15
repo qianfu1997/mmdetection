@@ -32,7 +32,7 @@ def rewrite(path, imgname, gt_annotation, debug_path):
     plt_h, plt_w = plt_img.shape[:2]
     pil_w, pil_h = Image_img.size
 
-    if not(plt_h == pil_h == h) and (plt_w == w == pil_w):
+    if not((plt_h == pil_h == h) and (plt_w == w == pil_w)):
         """ show the wrong image and the correct image with gt"""
         print(imgname)
         show_correct(Image_img, imgname, gt_annotation, debug_path)
@@ -73,10 +73,16 @@ def main():
     with open(args.gt_path, 'r', encoding='utf-8') as f:
         gt_annotations = json.loads(f.read(), object_pairs_hook=OrderedDict)
 
-    for name, gt_annotation in gt_annotations.items():
+    for idx, (name, gt_annotation) in enumerate(gt_annotations.items()):
         rewrite(args.train_set, name + '.jpg', gt_annotation, args.debug_path)
+        if idx % 500 == 0:
+            print('{} / {}'.format(idx, len(gt_annotations)))
 
     print('done')
+
+
+if __name__ == '__main__':
+    main()
 
 
 

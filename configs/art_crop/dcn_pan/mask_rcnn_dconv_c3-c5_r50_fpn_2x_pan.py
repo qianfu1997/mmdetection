@@ -122,6 +122,15 @@ data = dict(
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=True,
+        extra_aug=dict(
+            random_rotate=dict(
+              max_angle=5,
+              ver_flip_ratio=0.0,        # the flip ratio
+              angle_flip=0.0),         # default: False, for angle_flip try True
+            random_crop=dict(
+                crop_size=(800, 800),
+                pad=True)
+        ),
         with_label=True),
     val=dict(
         type=dataset_type,

@@ -83,6 +83,7 @@ def get_dataset(data_cfg):
 
     if isinstance(data_cfg['ann_file'], (list, tuple)):
         ann_files = data_cfg['ann_file']
+        # load dataset for all train txt.
         num_dset = len(ann_files)
     else:
         ann_files = [data_cfg['ann_file']]

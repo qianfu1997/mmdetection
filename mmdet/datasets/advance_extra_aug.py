@@ -5,6 +5,10 @@ import cv2
 
 from mmdet.core.evaluation.bbox_overlaps import bbox_overlaps
 
+""" in this version, will check the crop mask and do not 
+    use the small mask.
+"""
+
 
 class PhotoMetricDistortion(object):
 
@@ -144,19 +148,6 @@ class RandomCrop(object):
                 return img, boxes, labels
 
 
-# def get_rect_from_cnt(cnt):
-#     # cnt_points = np.array(cnt).reshape(-1, 2).astype(np.int64)
-#     # box = np.zeros(4)
-#     # box[:2] = np.min(cnt_points, axis=0)
-#     # box[2:] = np.max(cnt_points, axis=0)
-#     rect = cv2.minAreaRect(cnt)   # ori
-#     rect = cv2.boxPoints(rect)
-#     rect = np.array(np.int0(rect)).reshape(-1, 2).astype(np.int64)
-#     box = np.zeros(4)
-#     box[:2] = np.min(rect, axis=0)
-#     box[2:] = np.max(rect, axis=0)
-#     return box
-
 def get_rect_from_cnt(cnt):
     cnt_points = np.array(cnt).reshape(-1, 2).astype(np.int64)
     box = np.zeros(4)
@@ -182,6 +173,52 @@ def clip_box(bboxes, img_w, img_h):
     bboxes[:, 0::2] = np.clip(bboxes[:, 0::2], 0, img_w - 1)
     bboxes[:, 1::2] = np.clip(bboxes[:, 1::2], 0, img_h - 1)
     return bboxes
+
+
+def bbox_overlap_ic(bboxes1, bboxes2, mode='iob'):
+    """
+    :param bboxes1:np.ndarray (n, 4)
+    :param bboxes2: np.ndarray (k, 4)
+    :param mode: iou (intersection over union) or iof (intersection over foreground)
+                 iob (intersection over box)
+    :returns:
+        ious(ndarray): shape (n, k)
+    """
+    assert mode in ['iou', 'iof']
+
+    bboxes1 = bboxes1.astype(np.float32)
+    bboxes2 = bboxes2.astype(np.float32)
+    rows = bboxes1.shape[0]
+    cols = bboxes2.shape[0]
+    ious = np.zeros((rows, cols), dtype=np.float32)
+    if rows * cols == 0:
+        return ious
+    exchange = False
+    if bboxes1.shape[0] > bboxes2.shape[0]:
+        bboxes1, bboxes2 = bboxes2, bboxes1
+        ious = np.zeros((cols, rows), dtype=np.float32)
+        exchange = True
+    area1 = (bboxes1[:, 2] - bboxes1[:, 0] + 1) * (
+        bboxes1[:, 3] - bboxes2[:, 1] + 1)
+    area2 = (bboxes2[:, 2] - bboxes2[:, 0] + 1) * (
+        bboxes2[:, 3] - bboxes2[:, 1] + 1)
+    for i in range(bboxes1.shape[0]):
+        x_start = np.maximum(bboxes1[:, 0], bboxes2[:, 0])
+        y_start = np.maximum(bboxes1[:, 1], bboxes2[:, 1])
+        x_end = np.minimum(bboxes1[:, 2], bboxes2[:, 2])
+        y_end = np.minimum(bboxes1[:, 3], bboxes2[:, 3])
+        overlap = np.maximum(x_end - x_start + 1, 0) * np.maximum(
+            y_end - y_start + 1, 0)
+        if mode == 'iou':
+            union = area1[i] + area2 - overlap
+        elif mode == 'iof':
+            union = area1[i] if not exchange else area2
+        else:
+            union = area2 if not exchange else area1[i]
+        ious[i, :] = overlap / union
+    if exchange:
+        ious = ious.T
+    return ious
 
 
 class PhotoMetricDistortionIC(object):
@@ -243,31 +280,28 @@ class PhotoMetricDistortionIC(object):
         return img
 
 
-class RandomRotationIC(object):
+class advanceRandomRotationIC(object):
     def __init__(self,
-                 max_angle=10,
+                 max_angle=20,
                  ver_flip_ratio=0.0,
                  angle_flip=0):
         self.max_angle = max_angle
         self.ver_flip_ratio = ver_flip_ratio
         self.angle_flip = angle_flip
 
-        """ 
-        """
-
+    # input: img, gt_bboxes, gt_labels, gt_masks, gt_ignore_bboxes,
+    # gt_ignore_masks, img_shape, pad_shape, ratio
     def __call__(self, img, gt_bboxes, gt_labels, gt_masks, gt_ignore_bboxes,
-                 gt_ignore_masks, img_shape, pad_shape):
+                 gt_ignore_masks, img_shape, pad_shape, return_angle=False):
         """ keep the img_shape and pad_shape still """
         pad_h, pad_w, _ = pad_shape
         img_h, img_w, _ = img_shape
-        # img: [3, H, W] -> [H, W, 3]
         img = img.transpose(1, 2, 0).copy()
         assert img.shape[0] == pad_h and img.shape[1] == pad_w
-        # select a random rotate, and generate bbox from masks.
         angle = np.random.rand() * 2 * self.max_angle - self.max_angle
         random_anchor = [90, 270]
-        angle += random.choice(random_anchor) if \
-            bool(self.angle_flip > 0 and np.random.rand() < self.angle_flip) else 0
+        angle += random.choice(random_anchor) if bool(self.angle_flip > 0 and
+                                                      np.random.rand() < self.angle_flip) else 0
 
         # first ver_flip
         ver_flip_f = bool(self.ver_flip_ratio > 0 and np.random.rand() < self.ver_flip_ratio)
@@ -275,8 +309,7 @@ class RandomRotationIC(object):
         img_rotation = img[:img_h, :img_w, :].copy()
         if ver_flip_f:
             img_rotation = np.flip(img_rotation, 0)
-        img_rotation = cv2.warpAffine(      # do not use reflect.
-            img_rotation, rotation_matrix, (img_w, img_h))
+        img_rotation = cv2.warpAffine(img_rotation, rotation_matrix, (img_w, img_h))
         img[:img_h, :img_w, :] = img_rotation.copy()
 
         new_gt_bbox, new_gt_mask, new_gt_labels = [], [], []
@@ -296,14 +329,13 @@ class RandomRotationIC(object):
                     new_mask[:img_h, :img_w] = mask_rotation.copy()
                     new_gt_mask.append(new_mask)
                     new_gt_labels.append(gt_labels[idx])
-
         new_gt_ignore_bbox = []
         new_gt_ignore_mask = []
         for idx in range(len(gt_ignore_masks)):
             mask_rotation = gt_ignore_masks[idx][:img_h, :img_w].copy()
             if ver_flip_f:
                 mask_rotation = np.flip(mask_rotation, 0)
-            mask_rotation = cv2.warpAffine(     # do not reflect.
+            mask_rotation = cv2.warpAffine(
                 mask_rotation, rotation_matrix, (img_w, img_h))
             if np.max(mask_rotation) > 0:
                 cnt = get_cnt_from_mask(mask_rotation)
@@ -313,8 +345,7 @@ class RandomRotationIC(object):
                     new_mask = gt_ignore_masks[idx].copy()
                     new_mask[:img_h, :img_w] = mask_rotation.copy()
                     new_gt_ignore_mask.append(new_mask)
-
-        if len(new_gt_bbox) > 0:
+        if new_gt_bbox:
             new_gt_bbox = np.array(new_gt_bbox, dtype=np.float32)
             new_gt_bbox = clip_box(new_gt_bbox, img_w=img_w, img_h=img_h)
             new_gt_labels = np.array(new_gt_labels, dtype=np.int64)
@@ -322,18 +353,21 @@ class RandomRotationIC(object):
         else:
             new_gt_bbox = np.zeros((0, 4), dtype=np.float32)
             new_gt_labels = np.array([], dtype=np.int64)
-        if len(new_gt_ignore_bbox) > 0:
+        if new_gt_ignore_bbox:
             new_gt_ignore_bbox = np.array(new_gt_ignore_bbox, dtype=np.float32)
             new_gt_ignore_bbox = clip_box(new_gt_ignore_bbox, img_w=img_w, img_h=img_h)
             new_gt_ignore_mask = np.stack(new_gt_ignore_mask, axis=0)
         else:
             new_gt_ignore_bbox = np.zeros((0, 4), dtype=np.float32)
 
-        # img [H, W, 3] -> [3, H, W]
-        img = img.transpose(2, 0, 1)
+        img = img.tranpose(2, 0, 1)
         assert len(img.shape) == 3 and img.shape[0] == 3
-        return img, new_gt_bbox, new_gt_labels, new_gt_ignore_bbox,\
-               new_gt_mask, new_gt_ignore_mask, img_shape, pad_shape
+        if return_angle:
+            return img, new_gt_bbox, new_gt_labels, new_gt_ignore_bbox, \
+            new_gt_mask, new_gt_ignore_mask, img_shape, pad_shape, angle
+        else:
+            return img, new_gt_bbox, new_gt_labels, new_gt_ignore_bbox, \
+            new_gt_mask, new_gt_ignore_mask, img_shape, pad_shape
 
 
 class RandomCropIC(object):
@@ -341,159 +375,115 @@ class RandomCropIC(object):
                  crop_size=(800, 800),
                  pad=True):
         """ if the img shape > crop_size then crop.
-        else pad to the crop size """
-        # 1: return ori img
+        else pad to the crop size
+        A new version, crop according to the box center.
+        """
         self.crop_size = crop_size if crop_size is None or isinstance(crop_size, tuple) else \
             (crop_size, crop_size)
-        self.pad = pad
+        self.pad = self.pad
 
-        """ check the crop_size """
-        h, w = self.crop_size
-        h = h + (32 - h % 32) if h % 32 != 0 else h
-        w = w + (32 - w % 32) if w % 32 != 0 else w
-        self.crop_size = (h, w)
+        assert len(crop_size) == 2
+        crop_size = tuple(map(
+            lambda x: x + (32 - x % 32) if x % 32 != 0 else x, crop_size))
+        self.crop_size = crop_size
 
-    def __call__(self, img, gt_bboxes, gt_labels, gt_masks, gt_ignore_bboxes,
-                 gt_ignore_masks, img_shape, pad_shape):
-        pad_h, pad_w, _ = pad_shape
-        img_h, img_w, _ = img_shape
+    """ input: img, gt_box, gt_label, gt_mask, gt_ignore_box, gt_ignore_mask,
+                img_shape, pad_shape, ratio(randomrotate)
+        output: img, gt_box, gt_label, gt_mask, gt_ignore_box, gt_ignore_mask,
+                img_shape, pad_shape, ratio(randomrotate)
+    """
+    def __call__(self, img, gt_bboxes, gt_labels, gt_masks,
+                 gt_ignore_bboxes, gt_ignore_masks, img_shape, pad_shape):
+        pad_h, pad_w = pad_shape[:2]
+        img_h, img_w = img_shape[:2]
         crp_h, crp_w = self.crop_size
         # img [c, H, W] -> [H, W, c]
         img = img.transpose(1, 2, 0).copy()
-        assert img.shape[0] == pad_h and img.shape[1] == pad_w
+        assert img.shape[0] == pad_h and img_shape[1] == pad_w
         if pad_h == crp_h and pad_w == crp_w:
             img = img.transpose(2, 0, 1)
             return img, gt_bboxes, gt_labels, gt_ignore_bboxes, \
                    gt_masks, gt_ignore_masks, img_shape, pad_shape
 
-        tar_h = crp_h if img_h > crp_h else img_h
-        tar_w = crp_w if img_w > crp_w else img_w
-
-        label = np.zeros((img_h, img_w), dtype=np.uint8)
+        tar_size = tuple(map(lambda x, y: x if x < y else y, img_shape[:2], self.crop_size[:2]))
+        label = np.zeros(img_shape[:2], dtype=np.uint8)
         for idx in range(len(gt_masks)):
             mask = gt_masks[idx][:img_h, :img_w]
             label[mask > 0] = 1
-        # randomly select a region
-        if random.random() > 3.0 / 8.0 and np.max(label) > 0:
-            tl = np.min(np.where(label > 0), axis=1) - (tar_h, tar_w)
-            tl[tl < 0] = 0
-            br = np.max(np.where(label > 0), axis=1) - (tar_h, tar_w)
-            br[br < 0] = 0
-            br[0] = min(br[0], img_h - tar_h)
-            br[1] = min(br[1], img_w - tar_w)
+        while True:
+            # randomly select a patch.
+            if random.random() > 3.0 / 8.0 and np.max(label) > 0:
+                tl = tuple(np.maximum(np.min(np.where(label > 0), axis=1) - tar_size, 0))
+                br = tuple(np.maximum(np.max(np.where(label > 0), axis=1) - tar_size, 0))
+                br[0] = min(br[0], img_h - tar_size[0])
+                br[1] = min(br[1], img_w - tar_size[1])
 
-            i = random.randint(tl[0], br[0]) if tl[0] < br[0] else 0
-            j = random.randint(tl[1], br[1]) if tl[1] < br[1] else 0
-        else:
-            i = random.randint(0, img_h - tar_h) if img_h - tar_h > 0 else 0
-            j = random.randint(0, img_w - tar_w) if img_w - tar_w > 0 else 0
+                i = random.randint(tl[0], br[0]) if tl[0] < br[0] else 0
+                j = random.randint(tl[1], br[1]) if tl[1] < br[1] else 1
+            else:
+                i = random.randint(img_h - tar_size[0]) if img_h > tar_size[0] else 0
+                j = random.randint(img_w - tar_size[1]) if img_w > tar_size[1] else 0
 
+            patch = np.array((int(j), int(i), int(j + tar_size[1]), int(i + tar_size[0])))
+            overlaps = bbox_overlaps(
+                patch.reshape(-1, 4), gt_bboxes.reshape(-1, 4), mode='iob').reshape(-1)
+            if len(gt_masks) > 0 and overlaps.min() < 0.3:
+                continue
+            else:
+                break
+
+        """ do not select the center..."""
         new_gt_bbox, new_gt_mask, new_gt_labels = [], [], []
         for idx in range(len(gt_masks)):
-            """ find the cc, and generate box for cc. """
             mask = gt_masks[idx]
-            mask = mask[i:i + tar_h, j:j + tar_w]
+            mask = mask[i:i + tar_size[0], j:j + tar_size[1]]
             if np.max(mask) > 0:
                 cnt = get_cnt_from_mask(mask)
                 if cnt is not None:
-                    # generate the bounding boxes
                     box = get_rect_from_cnt(cnt)
                     new_gt_bbox.append(box.copy())
-                    # pad the masks
-                    mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_h, 0, crp_w - tar_w, borderType=cv2.BORDER_CONSTANT,
-                                               value=(0,))
+                    mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_size[0],
+                                                0, crp_w - tar_size[1], borderType=cv2.BORDER_CONSTANT, value=(0,))
                     new_gt_mask.append(mask_p.copy())
                     new_gt_labels.append(gt_labels[idx])
-
         new_gt_ignore_bbox = []
         new_gt_ignore_mask = []
         for idx in range(len(gt_ignore_masks)):
             mask = gt_ignore_masks[idx]
-            mask = mask[i:i + tar_h, j:j + tar_w]   # mask crop.
+            mask = mask[i:i + tar_size[0], j:j + tar_size[1]]
             if np.max(mask) > 0:
                 cnt = get_cnt_from_mask(mask)
                 if cnt is not None:
                     box = get_rect_from_cnt(cnt)
                     new_gt_ignore_bbox.append(box.copy())
-                    mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_h, 0, crp_w - tar_w,
+                    mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_size[0], 0, crp_w - tar_size[1],
                                                 borderType=cv2.BORDER_CONSTANT,
                                                 value=(0,))
                     new_gt_ignore_mask.append(mask_p.copy())
 
-        if len(new_gt_bbox) > 0:
+        if new_gt_bbox:
             new_gt_bbox = np.array(new_gt_bbox, dtype=np.float32)
-            new_gt_bbox = clip_box(new_gt_bbox, img_w=tar_w, img_h=tar_h)
+            new_gt_bbox = clip_box(new_gt_bbox, img_w=tar_size[1], img_h=tar_size[0])
             new_gt_labels = np.array(new_gt_labels, dtype=np.int64)
             new_gt_mask = np.stack(new_gt_mask, axis=0)
         else:
             new_gt_bbox = np.zeros((0, 4), dtype=np.float32)
             new_gt_labels = np.array([], dtype=np.int64)
-        if len(new_gt_ignore_bbox) > 0:
+        if new_gt_ignore_mask:
             new_gt_ignore_bbox = np.array(new_gt_ignore_bbox, dtype=np.float32)
-            new_gt_ignore_bbox = clip_box(new_gt_ignore_bbox, img_w=tar_w, img_h=tar_h)
+            new_gt_ignore_bbox = clip_box(new_gt_ignore_bbox, img_w=tar_size[1], img_h=tar_size[0])
             new_gt_ignore_mask = np.stack(new_gt_ignore_mask, axis=0)
         else:
             new_gt_ignore_bbox = np.zeros((0, 4), dtype=np.float32)
-
-        # crop and pad the img
-        img_crp = img[i:i + tar_h, j:j + tar_w, :]
+        img_crp = img[i:i + tar_size[0], j:j + tar_size[1]]
         img_shape_new = img_crp.shape
-        img_p = cv2.copyMakeBorder(img_crp, 0, crp_h - tar_h, 0, crp_w - tar_w, borderType=cv2.BORDER_CONSTANT,
+        img_p = cv2.copyMakeBorder(img_crp, 0, crp_h - tar_size[0], 0, crp_w - tar_size[1], borderType=cv2.BORDER_CONSTANT,
                                    value=(0, 0, 0))
         pad_shape_new = img_p.shape
-        # img_shape_new = img_p.shape
         img_p = img_p.transpose(2, 0, 1)
         assert len(img_p.shape) == 3 and img_p.shape[0] == 3
-        return img_p, new_gt_bbox, new_gt_labels, new_gt_ignore_bbox,\
+        return img_p, new_gt_bbox, new_gt_labels, new_gt_ignore_bbox, \
                new_gt_mask, new_gt_ignore_mask, img_shape_new, pad_shape_new
-
-
-class ExtraAugmentation(object):
-
-    def __init__(self,
-                 photo_metric_distortion=None,
-                 expand=None,
-                 random_crop=None):
-        self.transforms = []
-        if photo_metric_distortion is not None:
-            self.transforms.append(
-                PhotoMetricDistortion(**photo_metric_distortion))
-        if expand is not None:
-            self.transforms.append(Expand(**expand))
-        if random_crop is not None:
-            self.transforms.append(RandomCrop(**random_crop))
-
-    def __call__(self, img, boxes, labels):
-        img = img.astype(np.float32)
-        for transform in self.transforms:
-            img, boxes, labels = transform(img, boxes, labels)
-        return img, boxes, labels
-
-
-# class ExtraAugmentationIC(object):
-#     """ add for custom random crop method.
-#         first random rescale the img, and store
-#     """
-#
-#     def __init__(self,
-#                  photo_metric_distortion=None,
-#                  random_rotate=None,
-#                  random_crop=None):
-#         self.transforms = []
-#         if random_rotate is not None:
-#             self.transforms.append(RandomRotationIC(**random_rotate))
-#         if random_crop is not None:
-#             self.transforms.append(RandomCropIC(**random_crop))
-#
-#     def __call__(self, img, boxes, labels, masks,
-#                  ignore_bboxes, ignore_masks, img_shape, pad_shape):
-#         img = img.astype(np.float32)
-#         for transform in self.transforms:
-#             img, boxes, labels, ignore_bboxes, masks, ignore_masks, img_shape, pad_shape = \
-#                 transform(img, boxes, labels, masks, ignore_bboxes,
-#                           ignore_masks, img_shape, pad_shape)
-#         return img, boxes, labels, ignore_bboxes, \
-#                masks, img_shape, pad_shape
 
 
 # add color jitter and photoMetric for data augmentation
@@ -510,7 +500,7 @@ class ExtraAugmentationIC(object):
         if photo_metric_distortion is not None:
             self.first_transforms.append(PhotoMetricDistortionIC(**photo_metric_distortion))
         if random_rotate is not None:
-            self.transforms.append(RandomRotationIC(**random_rotate))
+            self.transforms.append(advanceRandomRotationIC(**random_rotate))
         if random_crop is not None:
             self.transforms.append(RandomCropIC(**random_crop))
 

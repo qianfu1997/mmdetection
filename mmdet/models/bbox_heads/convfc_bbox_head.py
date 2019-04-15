@@ -85,7 +85,7 @@ class ConvFCBBoxHead(BBoxHead):
     def _add_conv_fc_branch(self,
                             num_branch_convs,
                             num_branch_fcs,     # fc in this branch.
-                            in_channels,
+                            in_channels,        # self.in_channels.
                             is_shared=False):
         """Add shared or separable branch
 
@@ -185,6 +185,23 @@ class SharedFCBBoxHead(ConvFCBBoxHead):
             num_reg_convs=0,
             num_reg_fcs=0,
             fc_out_channels=fc_out_channels,
+            *args,
+            **kwargs)
+
+
+@HEADS.register_module
+class PANHeavierBBoxHead(ConvFCBBoxHead):
+    """ 4 shared convs """
+    def __init__(self, num_convs=4, conv_out_channels=256, *args, **kwargs):
+        assert num_convs >= 1
+        super(PANHeavierBBoxHead, self).__init__(
+            num_shared_convs=num_convs,
+            num_shared_fcs=0,
+            num_cls_convs=0,
+            num_cls_fcs=0,
+            num_reg_convs=0,
+            num_reg_fcs=0,
+            conv_out_channels=conv_out_channels,
             *args,
             **kwargs)
 

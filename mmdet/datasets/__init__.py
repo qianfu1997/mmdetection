@@ -11,6 +11,7 @@ from .extra_aug import ExtraAugmentation
 from .ArtDataset import ArtDataset
 from .LsvtDataset_mod2 import LsvtDataset
 from .ArtCropDataset import ArtCropDataset
+from .ArtCropMixupDataset import ArtCropMixupDataset
 
 
 # add for IC19
@@ -18,5 +19,5 @@ __all__ = [
     'CustomDataset', 'CustomCropDataset', 'XMLDataset', 'CocoDataset', 'VOCDataset', 'GroupSampler',
     'DistributedGroupSampler', 'build_dataloader', 'to_tensor', 'random_scale',
     'show_ann', 'get_dataset', 'ConcatDataset', 'RepeatDataset',
-    'ExtraAugmentation', 'LsvtDataset', 'ArtDataset', 'ArtCropDataset'
+    'ExtraAugmentation', 'LsvtDataset', 'ArtDataset', 'ArtCropDataset', 'ArtCropMixupDataset'
 ]

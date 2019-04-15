@@ -111,6 +111,10 @@ class BBoxHead(nn.Module):
                        scale_factor,
                        rescale=False,
                        cfg=None):
+        """ get rois, and the corresponding cls_socre and pred_score,
+        then use delta2bbox to generate final predicts. rois[:, 0] is the img_id,
+
+        """
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
         scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
@@ -123,6 +127,8 @@ class BBoxHead(nn.Module):
             # TODO: add clip here
 
         if rescale:
+            # det bboxes are fit to the ori shape if rescale.
+            # the box are corresponding to the rois
             bboxes /= scale_factor
 
         if cfg is None:

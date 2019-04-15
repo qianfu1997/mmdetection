@@ -124,6 +124,7 @@ class BaseDetector(nn.Module):
                     img_show[mask] = img_show[mask] * 0.5 + color_mask * 0.5
             # draw bounding boxes
             labels = [
+                # bboxes from different classes are concate together
                 np.full(bbox.shape[0], i, dtype=np.int32)
                 for i, bbox in enumerate(bbox_result)
             ]

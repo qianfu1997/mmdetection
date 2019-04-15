@@ -118,10 +118,12 @@ data = dict(
         ann_file=[
             data_root + 'ArT/annotations/sp_train_art_labels.json',
             data_root + 'LSVT/annotations/sp_train_full_labels.json',
+            data_root + 'ICDAR2017_MLT/annotations/sp_train_IC17_labels.json'
         ],
         img_prefix=[
             data_root + 'ArT/sp_train_art_images/',
-            data_root + 'LSVT/sp_train_full_images/'
+            data_root + 'LSVT/sp_train_full_images/',
+            data_root + 'ICDAR2017_MLT/sp_train/'
         ],
         img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
                    (2560, 608), (2560, 576), (2560, 992), (2560, 1024)],  # (1333, 800),# (576, 1024)

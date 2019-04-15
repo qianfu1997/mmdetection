@@ -44,6 +44,7 @@ class BBoxTestMixin(object):
         cls_score, bbox_pred = self.bbox_head(roi_feats)
         img_shape = img_meta[0]['img_shape']
         scale_factor = img_meta[0]['scale_factor']
+        # det labels are the classes name.
         det_bboxes, det_labels = self.bbox_head.get_det_bboxes(
             rois,
             cls_score,
@@ -51,7 +52,7 @@ class BBoxTestMixin(object):
             img_shape,
             scale_factor,
             rescale=rescale,
-            cfg=rcnn_test_cfg)
+            cfg=rcnn_test_cfg)      # filter bboxes according to test cfg.
         return det_bboxes, det_labels
 
     def aug_test_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
@@ -63,13 +64,18 @@ class BBoxTestMixin(object):
             scale_factor = img_meta[0]['scale_factor']
             flip = img_meta[0]['flip']
             # TODO more flexible
+            # only use the proposal_list[0] of original image,
+            # so the bboxes are corresponding.
             proposals = bbox_mapping(proposal_list[0][:, :4], img_shape,
                                      scale_factor, flip)
             rois = bbox2roi([proposals])
             # recompute feature maps to save GPU memory
+            # for each feats, generate corresponding roi_feats.
             roi_feats = self.bbox_roi_extractor(
                 x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
             cls_score, bbox_pred = self.bbox_head(roi_feats)
+            # get_det_bboxes from rois. didn't select the proposals,
+            # so all proposals are contained.
             bboxes, scores = self.bbox_head.get_det_bboxes(
                 rois,
                 cls_score,
@@ -78,6 +84,7 @@ class BBoxTestMixin(object):
                 scale_factor,
                 rescale=False,
                 cfg=None)
+            # save all aug_bboxes. bboxes from each feature map.
             aug_bboxes.append(bboxes)
             aug_scores.append(scores)
         # after merging, bboxes will be rescaled to the original image size
@@ -101,12 +108,14 @@ class MaskTestMixin(object):
                          rescale=False):
         # image shape of the first image in the batch (only one)
         ori_shape = img_meta[0]['ori_shape']
+        # the factor of rescaled img between the ori image.
         scale_factor = img_meta[0]['scale_factor']
         if det_bboxes.shape[0] == 0:
             segm_result = [[] for _ in range(self.mask_head.num_classes - 1)]
         else:
-            # if det_bboxes is rescaled to the original image size, we need to
-            # rescale it back to the testing scale to obtain RoIs.
+            # det_bboxes are fit to the ori shape if rescale.
+            # if rescale, in order to get features from rescaled feature map
+            # needed to multiply scale_factor first.
             _bboxes = (det_bboxes[:, :4] * scale_factor
                        if rescale else det_bboxes)
             mask_rois = bbox2roi([_bboxes])
@@ -115,8 +124,9 @@ class MaskTestMixin(object):
             mask_pred = self.mask_head(mask_feats)
             # for simple test, the mask are rescaled to the rescaled shape.
             segm_result = self.mask_head.get_seg_masks(
+                # _bboxes are fit to the rescaled feature maps.
                 mask_pred, _bboxes, det_labels, self.test_cfg.rcnn, ori_shape,
-                scale_factor, rescale)
+                scale_factor, rescale)  # the scale_factor
         return segm_result
 
     def aug_test_mask(self, feats, img_metas, det_bboxes, det_labels):

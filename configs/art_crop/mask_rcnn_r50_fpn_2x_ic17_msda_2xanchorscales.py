@@ -18,7 +18,7 @@ model = dict(
         type='RPNHead',
         in_channels=256,
         feat_channels=256,
-        anchor_scales=[8, 16],
+        anchor_scales=[4, 8],      # v1: 8, 16; v2: 4, 8
         anchor_ratios=[0.2, 0.5, 1.0, 2.0, 5.0, 8.0], #[0.5, 1.0, 2.0],
         anchor_strides=[4, 8, 16, 32, 64],
         target_means=[.0, .0, .0, .0],
@@ -174,7 +174,7 @@ log_config = dict(
     ])
 # yapf:enable
 # runtime settings
-total_epochs = 24
+total_epochs = 48
 dist_params = dict(backend='nccl')
 log_level = 'INFO'
 work_dir = './work_dirs/mask_rcnn_r50_fpn_1x'

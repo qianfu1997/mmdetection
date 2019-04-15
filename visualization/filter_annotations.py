@@ -20,7 +20,7 @@ import cv2
 
 """ add height and width imformation for image annotations """
 
-data_root = '../data/'
+data_root = '/home/data3/IC19/'
 LSVT_gt_root = data_root + 'LSVT/annotations/'
 LSVT_sp_train_data_root = data_root + 'LSVT/sp_train_full_images/'
 LSVT_sp_val_data_root = data_root + 'LSVT/sp_val_full_images'
@@ -69,21 +69,21 @@ def add_eval_json(ann_file, new_ann_file):
 
 
 if __name__ == '__main__':
-    # train_ann = osp.join(LSVT_gt_root, 'sp_train_full_labels.json')
-    # val_ann = osp.join(LSVT_gt_root, 'sp_val_full_labels.json')
-    # new_train_ann = osp.join(LSVT_gt_root, 'sp_train_detail_labels.json')
-    # new_val_ann = osp.join(LSVT_gt_root, 'sp_val_detail_labels.json')
-    # rewrite_annotations(LSVT_sp_train_data_root, train_ann, new_train_ann)
-    # rewrite_annotations(LSVT_sp_val_data_root, val_ann, new_val_ann)
-    # val_ann = osp.join(LSVT_gt_root, 'sp_val_full_labels.json')
-    # new_val_ann = osp.join(LSVT_gt_root, 'sp_val_eval_labels.json')
-    # add_eval_json(val_ann, new_val_ann)
-    train_ann = osp.join(ArT_gt_root, 'sp_train_art_labels.json')
-    val_ann = osp.join(ArT_gt_root, 'sp_val_art_labels.json')
-    new_train_ann = osp.join(ArT_gt_root, 'sp_train_detail_labels.json')
-    new_val_ann = osp.join(ArT_gt_root, 'sp_val_detail_labels.json')
-    eval_val_ann = osp.join(ArT_gt_root, 'sp_val_eval_labels.json')
-    rewrite_annotations(ArT_sp_train_data_root, train_ann, new_train_ann)
-    rewrite_annotations(ArT_sp_val_data_root, val_ann, new_val_ann)
-    add_eval_json(val_ann, eval_val_ann)
+    train_ann = osp.join(LSVT_gt_root, 'sp_train_full_labels.json')
+    val_ann = osp.join(LSVT_gt_root, 'sp_val_full_labels.json')
+    new_train_ann = osp.join(LSVT_gt_root, 'sp_train_detail_labels.json')
+    new_val_ann = osp.join(LSVT_gt_root, 'sp_val_detail_labels.json')
+    rewrite_annotations(LSVT_sp_train_data_root, train_ann, new_train_ann)
+    rewrite_annotations(LSVT_sp_val_data_root, val_ann, new_val_ann)
+    val_ann = osp.join(LSVT_gt_root, 'sp_val_full_labels.json')
+    new_val_ann = osp.join(LSVT_gt_root, 'sp_val_eval_labels.json')
+    add_eval_json(val_ann, new_val_ann)
+    # train_ann = osp.join(ArT_gt_root, 'sp_train_art_labels.json')
+    # val_ann = osp.join(ArT_gt_root, 'sp_val_art_labels.json')
+    # new_train_ann = osp.join(ArT_gt_root, 'sp_train_detail_labels.json')
+    # new_val_ann = osp.join(ArT_gt_root, 'sp_val_detail_labels.json')
+    # eval_val_ann = osp.join(ArT_gt_root, 'sp_val_eval_labels.json')
+    # rewrite_annotations(ArT_sp_train_data_root, train_ann, new_train_ann)
+    # rewrite_annotations(ArT_sp_val_data_root, val_ann, new_val_ann)
+    # add_eval_json(val_ann, eval_val_ann)
 

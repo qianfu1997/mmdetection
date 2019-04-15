@@ -105,7 +105,7 @@ test_cfg = dict(
         mask_thr_binary=0.5))
 # dataset settings
 dataset_type = 'ArtCropDataset'
-data_root = 'data/ArT/'
+data_root = 'data/'
 img_norm_cfg = dict(
     mean=[123.675, 116.28, 103.53], std=[58.395, 57.12, 57.375], to_rgb=True)
 data = dict(
@@ -113,8 +113,16 @@ data = dict(
     workers_per_gpu=2,
     train=dict(
         type=dataset_type,
-        ann_file=data_root + 'annotations/sp_train_art_labels.json',
-        img_prefix=data_root + 'sp_train_art_images/',
+        # ann_file=data_root + 'annotations/sp_train_art_labels.json',
+        # img_prefix=data_root + 'sp_train_art_images/',
+        ann_file=[
+            data_root + 'ArT/annotations/sp_train_art_labels.json',
+            data_root + 'LSVT/annotations/sp_train_full_labels.json',
+        ],
+        img_prefix=[
+            data_root + 'ArT/sp_train_art_images/',
+            data_root + 'LSVT/sp_train_full_images/'
+        ],
         img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
                    (2560, 608), (2560, 576), (2560, 992), (2560, 1024)],  # (1333, 800),# (576, 1024)
         img_norm_cfg=img_norm_cfg,

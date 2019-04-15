@@ -45,10 +45,11 @@ model = dict(
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     mask_head=dict(
-        type='FCNMaskHeadPAN',          # change to FCNMaskHeadPAN
+        type='FCNPspMaskHeadPAN',          # change to FCNPspMaskHeadPAN
         num_convs=4,
         in_channels=256,
         conv_out_channels=256,
+        pool_scales=(1, 2, 4, 8),
         num_classes=2))  # ori 81,change 2
 # model training and testing settings
 train_cfg = dict(
@@ -112,10 +113,6 @@ data = dict(
         img_prefix=data_root + 'sp_train_art_images/',
         img_scale=[(2560, 800), (2560, 736), (2560, 672), (2560, 864), (2560, 928),
                    (2560, 608), (2560, 576), (2560, 992), (2560, 1024)], # (1333, 800),# (576, 1024)
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)],       # version 2 around 928
-        # img_scale=[(2560, 928), (2560, 832), (2560, 736), (2560, 640), (2560, 1024), (2560, 1120),
-        #            (2560, 1216)], # version 3 around 1024
         img_norm_cfg=img_norm_cfg,
         size_divisor=32,
         flip_ratio=0.5,
@@ -154,7 +151,7 @@ data = dict(
         with_label=False,
         test_mode=True))
 # optimizer
-# 8GPU 0.02 and 4 GPU 0.01 2 GPU 0.005
+# 8GPU 0.02
 optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy

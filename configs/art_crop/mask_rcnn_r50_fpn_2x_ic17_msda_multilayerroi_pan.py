@@ -25,29 +25,29 @@ model = dict(
         target_stds=[1.0, 1.0, 1.0, 1.0],
         use_sigmoid_cls=True),
     bbox_roi_extractor=dict(
-        type='MultiRoIExtractor',          #
+        type='MultiLayerRoIExtractor',          # change to MultiLayerRoIExtractor
         roi_layer=dict(type='RoIAlign', out_size=7, sample_num=2),
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     bbox_head=dict(
         type='SharedFCBBoxHead',
         num_fcs=2,
-        in_channels=256,
-        fc_out_channels=1024,
+        in_channels=1024,                    # in_channels = 256 * 4 = 1024 ori 256
+        fc_out_channels=1024,               # 1024,
         roi_feat_size=7,
         num_classes=2,# ori 81
         target_means=[0., 0., 0., 0.],
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
     mask_roi_extractor=dict(
-        type='MultiRoIExtractor',       #   change to multi
+        type='MultiLayerRoIExtractor',       #   change to multi
         roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),  # ori 14
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),
     mask_head=dict(
         type='FCNMaskHeadPAN',          # change to FCNMaskHeadPAN
         num_convs=4,
-        in_channels=256,
+        in_channels=1024,               # in_channels = 256 * 4 = 1024
         conv_out_channels=256,
         num_classes=2))  # ori 81,change 2
 # model training and testing settings
@@ -58,7 +58,7 @@ train_cfg = dict(
             pos_iou_thr=0.7,
             neg_iou_thr=0.3,
             min_pos_iou=0.3,
-            ignore_iof_thr=0.7),     # change -1 to 0.7, that's IoU with gt_ignore_bbox > 0.7 will be ignored.
+            ignore_iof_thr=-1),     # change -1 to 0.7, that's IoU with gt_ignore_bbox > 0.7 will be ignored.
         sampler=dict(
             type='RandomSampler',
             num=256,
@@ -155,7 +155,7 @@ data = dict(
         test_mode=True))
 # optimizer
 # 8GPU 0.02 and 4 GPU 0.01 2 GPU 0.005 # change to 8 GPU
-optimizer = dict(type='SGD', lr=0.02, momentum=0.9, weight_decay=0.0001)
+optimizer = dict(type='SGD', lr=0.01, momentum=0.9, weight_decay=0.0001)
 optimizer_config = dict(grad_clip=dict(max_norm=35, norm_type=2))
 # learning policy
 lr_config = dict(

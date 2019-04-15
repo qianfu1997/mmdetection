@@ -22,10 +22,10 @@ def art_classes():
 
 label_ids = {name: i + 1 for i, name in enumerate(art_classes())}
 
-debug_path = '/home/data1/sxg/IC19/mmdetection-master/visualization/debug/'
+debug_path = './visualization/debug/'
 
 
-class ArtCropDataset(CustomCropDataset):
+class ArtCropMixupDataset(CustomCropDataset):
     """Custom dataset for detection.
 
     Annotation format:
@@ -47,9 +47,15 @@ class ArtCropDataset(CustomCropDataset):
     ]
 
     The `ann` field is optional for testing.
+    if is mixup mode, then randomly select another img during preparing traing img.
     """
 
     CLASSES = ('text')
+
+    def __init__(self, mixup_ratio=0, *args, **kwargs):
+        super(ArtCropMixupDataset, self).__init__(*args, **kwargs)
+        assert 0 <= mixup_ratio < 1
+        self.mixup_ratio = mixup_ratio
 
     def getBboxesAndLabels(self, height, width, annotations):
         bboxes = []
@@ -119,20 +125,7 @@ class ArtCropDataset(CustomCropDataset):
             img_infos.append(info)
             if indx % 1000 == 0:
                 print('{:d} % {:d}'.format(indx, len(files)))
-        # for debug
-        # name = 'gt_1045'
-        # if detailed_annotation is None:
-        #     img = cv2.imread(osp.join(self.img_prefix, name + '.jpg'))
-        #     height, width = img.shape[:2]
-        # else:
-        #     height, width = detailed_annotation[name]['height'], detailed_annotation[name]['width']
-        # info = {
-        #     'filename': name + '.jpg',
-        #     'height': height,
-        #     'width': width,
-        #     'img_annotation': gt_annotations[name]
-        # }
-        # img_infos.append(info)
+
         return img_infos
 
     def generate_masks_ann(self, height, width, annotations):
@@ -274,6 +267,206 @@ class ArtCropDataset(CustomCropDataset):
         if self.proposals is not None:
             data['proposals'] = proposals
         return data
+
+    def prepare_single_train_img(self, idx):
+        """ inherit from crop dataset"""
+        img_info = self.img_infos[idx]
+        assert osp.isfile(osp.join(self.img_prefix, img_info['filename']))
+        img = mmcv.imread(osp.join(self.img_prefix, img_info['filename']))
+        assert len(img.shape) == 3
+        if self.proposals is not None:
+            proposals = self.proposals[idx][:self.num_max_proposals]
+            if len(proposals) == 0:
+                return None
+            if not (proposals.shape[1] == 4 or proposals.shape[1] == 5):
+                raise AssertionError(
+                    'proposals should have shapes (n, 4) or (n, 5), '
+                    'but found {}'.format(proposals.shape))
+            if proposals.shape[1] == 5:
+                scores = proposals[:, 4, None]
+                proposals = proposals[:, :4]
+            else:
+                scores = None
+
+        # get ann here
+        ann = self.get_ann_info(idx)
+        gt_bboxes = ann['bboxes']
+        gt_labels = ann['labels']
+        if self.with_crowd:
+            gt_bboxes_ignore = ann['bboxes_ignore']
+        if len(gt_bboxes) == 0:
+            return None
+
+        flip = bool(np.random.rand() < self.flip_ratio)
+        img_scale = random_scale(self.img_scales, mode=self.resize_mode)
+
+        img, img_shape, pad_shape, scale_factor = self.img_transform(
+            img, img_scale, flip, keep_ratio=self.resize_keep_ratio)
+        img = img.copy()
+        if self.proposals is not None:
+            proposals = self.bbox_transform(proposals, img_shape, scale_factor,
+                                            flip)
+            proposals = np.hstack(
+                [proposals, scores]) if scores is not None else proposals
+        gt_bboxes = self.bbox_transform(gt_bboxes, img_shape, scale_factor,
+                                        flip)
+        if self.with_crowd:
+            gt_bboxes_ignore = self.bbox_transform(gt_bboxes_ignore, img_shape,
+                                                   scale_factor, flip)
+        if self.with_mask:
+            gt_masks = self.mask_transform(ann['masks'], pad_shape,
+                                           scale_factor, flip)
+            gt_ignore_masks = ann['ignore_masks']
+            if gt_ignore_masks:
+                gt_ignore_masks = self.mask_transform(ann['ignore_masks'], pad_shape,
+                                                      scale_factor, flip)
+        # extra augmentation
+        # different from the original ones.
+        # there use mask to generate img, gt_bboxes and gt_labels.
+        # extra_aug only supports random crop.
+        if self.extra_aug is not None and self.with_mask:
+            """ crop by masks, select gt_masks and gt_bboxes. 
+                the crop size is the ori_shape/img_shape/pad_shape
+                scale_factor use the scale_factor.
+                assert the input image shape: [3, H, W] and the output image shape
+                [3, H, W]
+            """
+            if self.with_crowd:
+                img, gt_bboxes, gt_labels, gt_bboxes_ignore, gt_masks, img_shape, pad_shape = \
+                    self.extra_aug(img, gt_bboxes, gt_labels, gt_masks, gt_bboxes_ignore,
+                                   gt_ignore_masks, img_shape, pad_shape)
+            else:
+                img, gt_bboxes, gt_labels, gt_bboxes_ignore, gt_masks, img_shape, pad_shape = \
+                    self.extra_aug(img, gt_bboxes, gt_labels, gt_masks, np.zeros((0, 4), dtype=np.float32),
+                                   gt_ignore_masks, img_shape, pad_shape)
+            img = img.copy()
+            # self.debug_rc(img, gt_bboxes, gt_masks, img_info["filename"])
+        if len(gt_bboxes) == 0:
+            return None
+
+        if not (self.extra_aug is not None and self.with_mask):
+            ori_shape = (img_info['height'], img_info['width'], 3)
+        else:
+            ori_shape = img_shape
+
+        img_meta = dict(
+            ori_shape=ori_shape,
+            img_shape=img_shape,
+            pad_shape=pad_shape,
+            scale_factor=scale_factor,
+            flip=flip)
+
+        data = dict(
+            img=DC(to_tensor(img), stack=True),
+            img_meta=DC(img_meta, cpu_only=True),
+            gt_bboxes=DC(to_tensor(gt_bboxes)))
+        if self.proposals is not None:
+            data['proposals'] = DC(to_tensor(proposals))
+        if self.with_label:
+            data['gt_labels'] = DC(to_tensor(gt_labels))
+        if self.with_crowd:
+            data['gt_bboxes_ignore'] = DC(to_tensor(gt_bboxes_ignore))
+        if self.with_mask:
+            data['gt_masks'] = DC(gt_masks, cpu_only=True)
+        return data
+
+    def prepare_train_img(self, idx):
+        mixup = bool(self.mixup_ratio > 0 and np.random.rand() < self.mixup_ratio)
+        train_data = self.prepare_single_train_img(idx)
+        if not mixup:
+            return train_data
+        else:
+            mix_idx = np.random.choice(np.delete(np.arange(len(self)), idx))
+            mix_data = self.prepare_single_train_img(mix_idx)
+            if train_data is None or mix_data is None:
+                return None
+
+            # can be further changed to beta distribution after.
+            # delta = 0.5
+            delta = np.float32(np.random.beta(1.5, 1.5))
+            # first mix the two image.
+            pad_h1, pad_w1, _ = train_data['img_meta'].data['pad_shape']
+            pad_h2, pad_w2, _ = mix_data['img_meta'].data['pad_shape']
+            img_h1, img_w1, _ = train_data['img_meta'].data['img_shape']
+            img_h2, img_w2, _ = mix_data['img_meta'].data['img_shape']
+            ori_shape = (max(train_data['img_meta'].data['ori_shape'][0], mix_data['img_meta'].data['ori_shape'][0]),
+                         max(train_data['img_meta'].data['ori_shape'][1], mix_data['img_meta'].data['ori_shape'][1]),
+                         3)
+            img_shape = (max(img_h1, img_h2), max(img_w1, img_w2), 3)
+            pad_shape = (max(pad_h1, pad_h2), max(pad_w1, pad_w2), 3)
+
+            mix_image = np.zeros((3, pad_shape[0], pad_shape[1]), dtype=np.float32)
+            mix_image[:, :img_h1, :img_w1] += train_data['img'].data.numpy()[:, :img_h1, :img_w1] * delta * 1.0
+            mix_image[:, :img_h2, :img_w2] += mix_data['img'].data.numpy()[:, :img_h2, :img_w2] * (1 - delta) * 1.0
+
+            mix_img_meta = dict(
+                ori_shape=ori_shape,
+                img_shape=img_shape,
+                pad_shape=pad_shape,
+                scale_factor=train_data['img_meta'].data['scale_factor'],
+                flip=train_data['img_meta'].data['flip'])
+
+            mix_gt_bboxes = np.concatenate((
+                train_data['gt_bboxes'].data.numpy(), mix_data['gt_bboxes'].data.numpy()),
+                0)
+            mixup_data = dict(
+                img=DC(to_tensor(mix_image), stack=True),
+                img_meta=DC(mix_img_meta, cpu_only=True),
+                gt_bboxes=DC(to_tensor(mix_gt_bboxes)))
+            if self.proposals is not None:
+                proposals = np.concatenate((
+                    train_data['proposals'].data.numpy(), mix_data['proposals'].data.numpy()),
+                    0)
+                mixup_data['proposals'] = DC(to_tensor(proposals))
+            if self.with_label:
+                # smooth or not smooth
+                gt_labels = np.concatenate((
+                    train_data['gt_labels'].data.numpy().astype(np.float32),
+                    mix_data['gt_labels'].data.numpy().astype(np.float32)),
+                    0)
+                mixup_data['gt_labels'] = DC(to_tensor(gt_labels))
+            if self.with_crowd:
+                gt_bboxes_ignore = np.concatenate((
+                    train_data['gt_bboxes_ignore'].data.numpy(), mix_data['gt_bboxes_ignore'].data.numpy()),
+                    0)
+                mixup_data['gt_bboxes_ignore'] = DC(to_tensor(gt_bboxes_ignore))
+            if self.with_mask:
+                gt_masks = np.concatenate((
+                    train_data['gt_masks'].data, mix_data['gt_masks'].data), 0)
+                mixup_data['gt_masks'] = DC(gt_masks, cpu_only=True)
+
+            mix_name = self.img_infos[idx]['filename'].split('.')[0] + '_' + self.img_infos[mix_idx]['filename'].split('.')[0]
+            # self.debug_mixup(mix_image, mix_gt_bboxes, gt_masks, mix_name)
+            return mixup_data
+
+    def debug_mixup(self, mix_img, mix_bboxes, mix_masks, mix_name=None):
+        debug_img = mix_img.copy().transpose(1, 2, 0)
+        debug_img = (debug_img * self.img_norm_cfg['std'] + self.img_norm_cfg['mean']).astype(np.uint8)
+        if not osp.exists(debug_path):
+            os.makedirs(debug_path)
+        assert len(mix_masks) == len(mix_bboxes)
+        instance_mask = np.zeros((debug_img.shape[0], debug_img.shape[1], 3), dtype=np.uint8)
+        for i in range(len(mix_bboxes)):
+            bbox, mask = mix_bboxes[i], mix_masks[i]
+            instance_mask[mask > 0] = (255, 255, 255)
+            topL, bottomR = bbox[:2], bbox[2:]
+            cv2.rectangle(instance_mask, tuple(topL), tuple(bottomR), (0, 255, 0), 2)
+        instance_mask = np.concatenate((debug_img, instance_mask), axis=1)
+        cv2.imwrite(debug_path + mix_name + '.jpg', instance_mask)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

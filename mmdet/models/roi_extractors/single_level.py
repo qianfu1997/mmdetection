@@ -59,7 +59,7 @@ class SingleRoIExtractor(nn.Module):
         - scale >= finest_scale * 4: level 3
 
         Args:
-            rois (Tensor): Input RoIs, shape (k, 5).
+            rois (Tensor): Input RoIs, shape (k, 5).        # 4 coordinates and 1 confidence.
             num_levels (int): Total level number.
 
         Returns:
@@ -79,7 +79,7 @@ class SingleRoIExtractor(nn.Module):
             # rois are proposals corresponding to original input image.
             return self.roi_layers[0](feats[0], rois)
 
-        out_size = self.roi_layers[0].out_size
+        out_size = self.roi_layers[0].out_size      # the roi_layer's out size.
         num_levels = len(feats)
         # map roi to one feature map.
         target_lvls = self.map_roi_levels(rois, num_levels)

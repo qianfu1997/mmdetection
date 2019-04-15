@@ -1,12 +1,10 @@
 # model settings
 model = dict(
     type='MaskRCNN',
-    pretrained='open-mmlab://resnext101_64x4d',
+    pretrained='modelzoo://resnet101',
     backbone=dict(
-        type='ResNeXt',
+        type='ResNet',
         depth=101,
-        groups=64,
-        base_width=4,
         num_stages=4,
         out_indices=(0, 1, 2, 3),
         frozen_stages=1,
@@ -125,12 +123,6 @@ data = dict(
         with_mask=True,
         with_crowd=True,
         extra_aug=dict(     # add first transform for data augmentation.
-            photo_metric_distorion=dict(
-                brightness_delta=32,
-                contrast_range=(0.5, 1.5),
-                saturation_range=(0.5, 1.5),
-                hue_delta=18
-            ),
             random_rotate=dict(
               max_angle=5,
               ver_flip_ratio=0.0,        # the flip ratio

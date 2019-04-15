@@ -96,12 +96,21 @@ class ArtCropDataset(CustomCropDataset):
         detailed_annotation = None
         img_infos = []
         files = os.listdir(self.img_prefix)
-        detailed_ann_file = ann_file.replace('_art_', '_detail_')
+        # detailed_ann_file = ann_file.replace('_art_', '_detail_') if 'art' in ann_file \
+        #     else ann_file.replace('_full_', '_detail_')
+        if 'art' in ann_file:
+            detailed_ann_file = ann_file.replace('_art_', '_detail_')
+        elif 'LSVT' in ann_file:
+            detailed_ann_file = ann_file.replace('_full_', '_detail_')
+        else:
+            detailed_ann_file = ann_file.replace('_IC17_', '_detail_')
+
         with open(ann_file, 'r', encoding='utf-8') as f:
             gt_annotations = json.loads(f.read(), object_pairs_hook=OrderedDict)
         if osp.isfile(detailed_ann_file):
             with open(detailed_ann_file, 'r', encoding='utf-8') as f:
                 detailed_annotation = json.loads(f.read(), object_pairs_hook=OrderedDict)
+
         for indx in range(len(files)):
             name = osp.splitext(files[indx])[0]
             if detailed_annotation is None:
@@ -118,6 +127,20 @@ class ArtCropDataset(CustomCropDataset):
             img_infos.append(info)
             if indx % 1000 == 0:
                 print('{:d} % {:d}'.format(indx, len(files)))
+        #     # for debug
+        #     name = 'gt_805'
+        #     if detailed_annotation is None:
+        #         img = cv2.imread(osp.join(self.img_prefix, name + '.jpg'))
+        #         height, width = img.shape[:2]
+        #     else:
+        #         height, width = detailed_annotation[name]['height'], detailed_annotation[name]['width']
+        #     info = {
+        #         'filename': name + '.jpg',
+        #         'height': height,
+        #         'width': width,
+        #         'img_annotation': gt_annotations[name]
+        #     }
+        #     img_infos.append(info)
         return img_infos
 
     def generate_masks_ann(self, height, width, annotations):
@@ -185,9 +208,9 @@ class ArtCropDataset(CustomCropDataset):
             'labels_ignore': labels_ignore
         }
         if self.with_mask:
-            # gt_masks = self.generate_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
-            # gt_ignore_masks = self.generate_ignore_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
-            gt_masks, gt_ignore_masks = self.generate_mask(height, width, self.img_infos[idx]['img_annotation'])
+            gt_masks = self.generate_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
+            gt_ignore_masks = self.generate_ignore_masks_ann(height, width, self.img_infos[idx]['img_annotation'])
+            # gt_masks, gt_ignore_masks = self.generate_mask(height, width, self.img_infos[idx]['img_annotation'])
             ann['masks'] = gt_masks
             ann['ignore_masks'] = gt_ignore_masks
             assert len(gt_masks) == bboxes.shape[0]

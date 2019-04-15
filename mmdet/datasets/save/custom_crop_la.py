@@ -7,10 +7,10 @@ import numpy as np
 from mmcv.parallel import DataContainer as DC
 from torch.utils.data import Dataset
 
-from .transforms import (ImageTransform, BboxTransform, MaskTransform,
-                         Numpy2Tensor)
-from .utils import to_tensor, random_scale
-from .extra_aug import ExtraAugmentation, ExtraAugmentationIC
+from mmdet.datasets.transforms import (ImageTransform, BboxTransform, MaskTransform,
+                                       Numpy2Tensor)
+from mmdet.datasets.utils import to_tensor, random_scale
+from mmdet.datasets.extra_aug import ExtraAugmentation, ExtraAugmentationIC
 """ a version with crop. """
 debug_path = '/home/data3/sxg/IC19/mmdetection-master/visualization/debug/'
 # debug_path = '/home/xieenze/sxg_workspace/mmdetection-master/visualization/debug/'

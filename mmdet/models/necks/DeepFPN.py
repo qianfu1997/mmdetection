@@ -13,6 +13,8 @@ from mmcv.cnn import xavier_init
 
 from ..utils import ConvModule
 from ..registry import NECKS
+""" an implementation of deepFPN """
+
 
 @NECKS.register_module
 class DeepFPN(nn.Module):

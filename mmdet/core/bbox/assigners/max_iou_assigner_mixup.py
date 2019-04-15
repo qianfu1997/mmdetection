@@ -5,7 +5,7 @@ from .assign_result import AssignResult
 from ..geometry import bbox_overlaps
 
 
-class MaxIoUAssigner(BaseAssigner):
+class MaxIoUMixupAssigner(BaseAssigner):
     """Assign a corresponding gt bbox or background to each bbox.
 
     Each proposals will be assigned with `-1`, `0`, or a positive integer
@@ -140,11 +140,11 @@ class MaxIoUAssigner(BaseAssigner):
                     assigned_gt_inds[gt_argmax_overlaps[i]] = i + 1
 
         if gt_labels is not None:
-            assigned_labels = assigned_gt_inds.new_zeros((num_bboxes, ))
+            assigned_labels = assigned_gt_inds.new_zeros((num_bboxes, )).float()
             pos_inds = torch.nonzero(assigned_gt_inds > 0).squeeze()
             if pos_inds.numel() > 0:
                 assigned_labels[pos_inds] = gt_labels[
-                    assigned_gt_inds[pos_inds] - 1]
+                    assigned_gt_inds[pos_inds] - 1].float()
         else:
             assigned_labels = None
 

@@ -8,6 +8,7 @@ class RepeatDataset(object):
         self.times = times
         self.CLASSES = dataset.CLASSES
         if hasattr(self.dataset, 'flag'):
+            # copy. ..
             self.flag = np.tile(self.dataset.flag, times)
 
         self._ori_len = len(self.dataset)

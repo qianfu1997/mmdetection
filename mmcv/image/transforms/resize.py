@@ -42,6 +42,7 @@ def imresize(img, size, return_scale=False, interpolation='bilinear'):
     """
     h, w = img.shape[:2]
     resized_img = cv2.resize(
+        # if do not keep ratio, then just resize the img.
         img, size, interpolation=interp_codes[interpolation])
     if not return_scale:
         return resized_img

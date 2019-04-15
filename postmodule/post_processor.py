@@ -147,9 +147,10 @@ def get_text_polygon(segm, mask_shape=None, scale_factor=None, min_area=0.0):
     instance_mask = 0 * instance_mask
     instance_mask[label == max_index] = 1
     _, cnt, _ = cv2.findContours(instance_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-    cnt = cnt[0]
-    epsilon = 0.01 * cv2.arcLength(cnt, True)
-    box = cv2.approxPolyDP(cnt, epsilon, True)
+    # cnt = cnt[0]
+    # epsilon = 0.01 * cv2.arcLength(cnt, True)
+    # box = cv2.approxPolyDP(cnt, epsilon, True)
+    box = cnt[0]
     # scale_factor = [ori_w / mask_w, ori_h / mask_h]
     box = ((box.reshape(-1, 2)) * scale_factor).astype(np.int32)
     if box.shape[0] < 3:
@@ -226,12 +227,17 @@ def polygon_softnms(polygon_boxes, polygon_scores, conf_thr=0, sigma=0,
             order_idx = order_idx[1:]
         nms_polygon_bboxes = polygon_boxes
         nms_polygon_scores = polygon_scores
-
-    # filter by scores
-    indx = np.where(nms_polygon_scores > conf_thr)[0]
-    nms_polygon_bboxes = [nms_polygon_bboxes[i] for i in indx]
-    nms_polygon_scores = nms_polygon_scores[indx]
-    return nms_polygon_bboxes, nms_polygon_scores
+    # rearrange the order by scores
+    px = np.array(np.argsort(nms_polygon_scores)[::-1])
+    n_nms_polygon_scores, n_nms_polygon_bboxes = [], []
+    for i in px:
+        if nms_polygon_scores[i] > conf_thr:
+            n_nms_polygon_scores.append(nms_polygon_scores[i])
+            n_nms_polygon_bboxes.append(nms_polygon_bboxes[i])
+        else:
+            break
+    n_nms_polygon_scores = np.asarray(n_nms_polygon_scores)
+    return n_nms_polygon_bboxes, n_nms_polygon_scores
 
 
 class PostProcessor(object):
@@ -285,24 +291,6 @@ class PostProcessor(object):
         elif self.nms_mode == 'soft_nms':
             return polygon_softnms(polygon_bboxes, polygon_scores, **self.nms_setting)
 
-    # def process(self, segms, segms_scores, mask_shape, scale_factor=1.0):
-    #     assert len(segms) == len(segms_scores)
-    #     h, w, _ = mask_shape
-    #     inds = np.where(segms_scores > self.conf_thr_fir)[0]
-    #     p_get_text_polygon = partial(get_text_polygon, mask_shape=mask_shape, scale_factor=scale_factor,
-    #                                  min_area=self.min_area_thr)
-    #     polygon_bboxes = list(map(p_get_text_polygon, [segms[i] for i in inds]))
-    #     # polygon_bboxes = [poly for poly in polygon_bboxes if poly is not None]
-    #     # polygon_scores =
-    #     indx = [indx for indx, _ in enumerate(inds) if polygon_bboxes[indx] is not None]
-    #     inds = inds[indx]
-    #     polygon_bboxes = [polygon_bboxes[i] for i in indx]
-    #     polygon_scores = np.asarray(segms_scores[inds])
-    #     if self.nms_mode == 'nms':
-    #         return polygon_nms(polygon_bboxes, polygon_scores,
-    #                            nms_thr=self.nms_thr, conf_thr=self.conf_thr_sec)
-    #     elif self.nms_mode == 'soft_nms':
-    #         return polygon_softnms(polygon_bboxes, polygon_scores, **self.nms_setting)
 
 
 

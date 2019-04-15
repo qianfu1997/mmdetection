@@ -354,6 +354,7 @@ class ResNet(nn.Module):
 
         self.res_layers = []
         for i, num_blocks in enumerate(self.stage_blocks):
+            # stride settings of each stage.
             stride = strides[i]
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
@@ -371,6 +372,7 @@ class ResNet(nn.Module):
                 dcn=dcn)
             self.inplanes = planes * self.block.expansion
             layer_name = 'layer{}'.format(i + 1)
+            # raise a name.
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
 

@@ -9,7 +9,7 @@
   "nms_mode": "soft_nms",
   "nms_setting": {
     "nms_thr": 0.08,
-    "conf_thr": 0.8,
+    "conf_thr": 0.01,
     "sigma":0.1,
     "soft_sort": "False"
   }

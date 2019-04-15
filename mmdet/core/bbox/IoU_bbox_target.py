@@ -2,7 +2,7 @@
 # @author:charlotte.Song
 # @file: IoU_bbox_target.py
 # @Date: 2019/4/8 21:53
-# @description:
+# @description: bbox_target for GIoU loss.
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import
 from __future__ import division

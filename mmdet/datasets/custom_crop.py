@@ -11,9 +11,12 @@ from .transforms import (ImageTransform, BboxTransform, MaskTransform,
                          Numpy2Tensor)
 from .utils import to_tensor, random_scale
 from .extra_aug import ExtraAugmentation, ExtraAugmentationIC
+""" a version with crop. 
+    add support IC17.
+"""
+debug_path = '/home/data3/sxg/IC19/mmdetection-master/visualization/debug/'
+# debug_path = '/home/xieenze/sxg_workspace/mmdetection-master/visualization/debug/'
 
-""" a version with crop. """
-debug_path = '/home/data1/sxg/IC19/mmdetection-master/visualization/debug/'
 
 class CustomCropDataset(Dataset):
     """Custom dataset for detection.
@@ -59,7 +62,8 @@ class CustomCropDataset(Dataset):
 
         # load annotations (and proposals)
         # need to be implement.
-        self.img_infos = self.load_annotations(ann_file)
+        self.img_infos = self.load_annotations(ann_file) if 'ICDAR2017_MLT' not in ann_file \
+            else self.load_annotations_ic17(ann_file)
         if proposal_file is not None:
             self.proposals = self.load_proposals(proposal_file)
         else:
@@ -132,6 +136,11 @@ class CustomCropDataset(Dataset):
     def get_ann_info(self, idx):
         return self.img_infos[idx]['ann']
 
+    def load_annotations_ic17(self, ann_path):
+        """ used for IC17 """
+        """ will change IC annotations to JSON """
+        return mmcv.load(ann_path)
+
     def _filter_imgs(self, min_size=32):
         """Filter images too small."""
         valid_inds = []
@@ -167,6 +176,7 @@ class CustomCropDataset(Dataset):
             return data
 
     def prepare_train_img(self, idx):
+
         img_info = self.img_infos[idx]
         # load image
         assert osp.isfile(osp.join(self.img_prefix, img_info['filename']))
@@ -200,6 +210,11 @@ class CustomCropDataset(Dataset):
         if len(gt_bboxes) == 0:
             return None
 
+        # extra augmentation for photometric
+        if self.extra_aug is not None:
+            img = self.extra_aug.first_transform(img)
+        img = img.copy()
+
         # apply transforms
         flip = True if np.random.rand() < self.flip_ratio else False
         img_scale = random_scale(self.img_scales, mode=self.resize_mode)
@@ -223,9 +238,11 @@ class CustomCropDataset(Dataset):
             gt_masks = self.mask_transform(ann['masks'], pad_shape,
                                            scale_factor, flip)
             gt_ignore_masks = ann['ignore_masks']
-            if gt_ignore_masks:
-                gt_ignore_masks = self.mask_transform(ann['ignore_masks'], pad_shape,
+            if len(gt_ignore_masks) > 1:
+                gt_ignore_masks = self.mask_transform(gt_ignore_masks, pad_shape,
                                                       scale_factor, flip)
+            else:
+                gt_ignore_masks = np.array([], dtype=np.uint8)
         # extra augmentation
         # different from the original ones.
         # there use mask to generate img, gt_bboxes and gt_labels.
@@ -239,14 +256,16 @@ class CustomCropDataset(Dataset):
             """
             if self.with_crowd:
                 img, gt_bboxes, gt_labels, gt_bboxes_ignore, gt_masks, img_shape, pad_shape = \
-                    self.extra_aug(img, gt_bboxes, gt_labels, gt_masks, gt_bboxes_ignore,
-                                   gt_ignore_masks, img_shape, pad_shape)
+                    self.extra_aug(img=img, boxes=gt_bboxes, labels=gt_labels, masks=gt_masks, ignore_bboxes=gt_bboxes_ignore, ignore_masks=gt_ignore_masks,
+                                   img_shape=img_shape, pad_shape=pad_shape)
+
             else:
                 img, gt_bboxes, gt_labels, gt_bboxes_ignore, gt_masks, img_shape, pad_shape = \
-                    self.extra_aug(img, gt_bboxes, gt_labels, gt_masks, np.zeros((0, 4), dtype=np.float32),
-                                   gt_ignore_masks, img_shape, pad_shape)
+                    self.extra_aug(img=img, boxes=gt_bboxes, labels=gt_labels, masks=gt_masks, ignore_bboxes=np.zeros((0, 4), dtype=np.float32), ignore_masks=gt_ignore_masks,
+                                   img_shape=img_shape, pad_shape=pad_shape)
             img = img.copy()
             # self.debug_rc(img, gt_bboxes, gt_masks, img_info["filename"])
+
         if len(gt_bboxes) == 0:
             return None
         # the ori_shape will be changed to the crop size.
@@ -280,20 +299,23 @@ class CustomCropDataset(Dataset):
 
     def debug_rc(self, img, gt_bboxes, gt_masks, img_name):
         """ a debug function for random crop """
-        save_path = debug_path
-        debug_img = img.copy() * 255
-        debug_img = debug_img.transpose(1, 2, 0).astype(np.uint8)
+        identifier = 'art' if 'art' in self.img_prefix else 'lsvt'
+        save_path = osp.join(debug_path, identifier)
+        debug_img = img.copy()
+        debug_img = debug_img.transpose(1, 2, 0)
+        debug_img = (debug_img * self.img_norm_cfg['std'] + self.img_norm_cfg['mean']).astype(np.uint8)
         if not osp.exists(save_path):
             os.makedirs(save_path)
         assert len(gt_masks) == len(gt_bboxes)
+        instance_mask = np.zeros((debug_img.shape[0], debug_img.shape[1], 3), dtype=np.uint8)
         for i in range(len(gt_bboxes)):
             bbox, mask = gt_bboxes[i], gt_masks[i]
-            instance_mask = np.zeros((mask.shape[0], mask.shape[1], 3), dtype=np.uint8)
             instance_mask[mask > 0] = (255, 255, 255)
             topL, bottomR = bbox[:2], bbox[2:]
             cv2.rectangle(instance_mask, tuple(topL), tuple(bottomR), (0, 255, 0), 2)
-            instance_mask = np.concatenate((debug_img, instance_mask), axis=1)
-            cv2.imwrite(save_path + img_name + '_' + str(i) + '.jpg', instance_mask)
+        instance_mask = np.concatenate((debug_img, instance_mask), axis=1)
+        # cv2.imwrite(save_path + img_name + '.jpg', instance_mask)
+        cv2.imwrite(osp.join(save_path, img_name + '.jpg'), instance_mask)
 
     def prepare_test_img(self, idx):
         """Prepare an image for testing (multi-scale and flipping)"""

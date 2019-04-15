@@ -119,7 +119,7 @@ def single_test_json(model, data_loader, post_processor,
         """
         with torch.no_grad():
             # can change this to True.
-            result = model(return_loss=False, rescale=False, **data)
+            result = model(return_loss=False, rescale=True, **data)
         # deal with the mask and post processing here.
         # as masks are fit to the original imgs, just reload the original imgs
         #
@@ -127,41 +127,29 @@ def single_test_json(model, data_loader, post_processor,
             bbox_result, segm_result = result
         else:
             bbox_result, segm_result = result, None
-        img_tensor = data['img'][0] # for aug test data['img'] is a list.
-        # img_tensor = data['img'][0]
-        # img_metas = data['img_meta'][0].data[0]
-        img_metas = data['img_meta'][0].data[0] # datacontainer, return ._data
+        img_tensor = data['img'][0]     # for aug test data['img'] is a list.
+        img_metas = data['img_meta'][0].data[0]  # datacontainer, return ._data
         filename = img_metas[0]['filename']
         img_name = osp.splitext(filename)[0]
         # for eval.
         img_name = img_name.replace('gt_', 'res_')
         imgs = tensor2imgs(img_tensor, **img_norm_cfg)
         assert len(imgs) == len(img_metas)
-        # bboxes and masks will be rescaled to the size of imgs[0]
         img_meta_0 = img_metas[0]
-        h, w, _ = img_meta_0['img_shape']
-        ori_h, ori_w, _ = img_meta_0['ori_shape']
-        scales = (ori_w * 1.0 / w, ori_h * 1.0 / h)
-        # use the scores and segm_result to generate bbox and mask.
-        # bbox_result is a tuple contains list of different bboxes.
         vs_bbox_result = np.vstack(bbox_result)
         if segm_result is None:
-            pred_bboxes = []
+            pred_bboxes, pred_bbox_scores = [], []
         else:
-            segm_scores = np.asarray(vs_bbox_result[:, -1])
-            segms = mmcv.concat_list(segm_result)
-            # the bboxes returned by processor are fit to the original images.
-            if len(data['img']) <= 1:
-                # print('1-metas:{:d}'.format(len(img_metas)))
-                # single simple test the predicted mask use the size of rescaled img.
-                pred_bboxes, pred_bbox_scores = post_processor.process(segms, segm_scores,
-                                                                       mask_shape=img_meta_0['img_shape'],
-                                                                       scale_factor=scales)
+            if isinstance(segm_result, tuple):
+                segm_scores = segm_result[-1]
+                segms = mmcv.concat_list(segm_result[0])
             else:
-                # aug test the predicted mask use the size of original img
-                pred_bboxes, pred_bbox_scores = post_processor.process(segms, segm_scores,
-                                                                       mask_shape=img_meta_0['ori_shape'],
-                                                                       scale_factor=(1.0, 1.0))
+                segm_scores = np.asarray(vs_bbox_result[:, -1])
+                segms = mmcv.concat_list(segm_result)
+
+            pred_bboxes, pred_bbox_scores = post_processor.process(segms, segm_scores,
+                                                       mask_shape=img_meta_0['ori_shape'],
+                                                       scale_factor=(1.0, 1.0))
         # save the results.
         single_pred_results = []
         for pred_bbox, pred_bbox_score in zip(pred_bboxes, pred_bbox_scores):
@@ -184,8 +172,9 @@ def single_test_json(model, data_loader, post_processor,
                 for gt_idx in range(len(gt_annos)):
                     gt_bbox = np.asarray(gt_annos[gt_idx]["points"]).reshape(-1, 2).astype(np.int64)
                     if gt_annos[gt_idx]["illegibility"]:
+                        # if ignore red
                         color = (255, 0, 0)
-                    else:
+                    else:   # if not ignore blue
                         color = (0, 0, 255)
                     cv2.drawContours(img, [gt_bbox], -1, color, 2)
             cv2.imwrite(osp.join(show_path, filename), img)

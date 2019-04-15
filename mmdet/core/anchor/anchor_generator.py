@@ -4,9 +4,9 @@ import torch
 class AnchorGenerator(object):
 
     def __init__(self, base_size, scales, ratios, scale_major=True, ctr=None):
-        self.base_size = base_size
-        self.scales = torch.Tensor(scales)
-        self.ratios = torch.Tensor(ratios)
+        self.base_size = base_size      # multi-level feat map sizes.
+        self.scales = torch.Tensor(scales)  # anchor scales.
+        self.ratios = torch.Tensor(ratios)  # anchor ratios.
         self.scale_major = scale_major
         self.ctr = ctr
         self.base_anchors = self.gen_base_anchors()
@@ -52,6 +52,7 @@ class AnchorGenerator(object):
             return yy, xx
 
     def grid_anchors(self, featmap_size, stride=16, device='cuda'):
+        """ stride is map to max size. """
         base_anchors = self.base_anchors.to(device)
 
         feat_h, feat_w = featmap_size

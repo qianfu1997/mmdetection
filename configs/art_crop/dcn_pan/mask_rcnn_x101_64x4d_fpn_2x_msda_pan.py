@@ -119,7 +119,13 @@ data = dict(
         flip_ratio=0.5,
         with_mask=True,
         with_crowd=True,
-        extra_aug=dict(
+        extra_aug=dict(     # add first transform for data augmentation.
+            photo_metric_distorion=dict(
+                brightness_delta=32,
+                contrast_range=(0.5, 1.5),
+                saturation_range=(0.5, 1.5),
+                hue_delta=18
+            ),
             random_rotate=dict(
               max_angle=5,
               ver_flip_ratio=0.0,        # the flip ratio

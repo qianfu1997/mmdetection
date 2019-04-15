@@ -55,8 +55,11 @@ def merge_aug_bboxes(aug_bboxes, aug_scores, img_metas, rcnn_test_cfg):
         img_shape = img_info[0]['img_shape']
         scale_factor = img_info[0]['scale_factor']
         flip = img_info[0]['flip']
+        # recover to fit the img_shape and flip, to the original img.
         bboxes = bbox_mapping_back(bboxes, img_shape, scale_factor, flip)
         recovered_bboxes.append(bboxes)
+    # stack to the dim=0, calculate mean.
+    # mean(boxes of same proposal), this may be better.
     bboxes = torch.stack(recovered_bboxes).mean(dim=0)
     if aug_scores is None:
         return bboxes

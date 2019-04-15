@@ -40,7 +40,7 @@ model = dict(
         target_stds=[0.1, 0.1, 0.2, 0.2],
         reg_class_agnostic=False),
     mask_roi_extractor=dict(
-        type='SingleRoIExtractor',       #
+        type='SingleRoIExtractor',       #   change to multi
         roi_layer=dict(type='RoIAlign', out_size=14, sample_num=2),  # ori 14
         out_channels=256,
         featmap_strides=[4, 8, 16, 32]),

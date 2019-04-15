@@ -3,6 +3,7 @@ import numpy as np
 import pycocotools.mask as mask_util
 import torch
 import torch.nn as nn
+import cv2
 
 from ..registry import HEADS
 from ..utils import ConvModule
@@ -50,8 +51,10 @@ class FCNMaskHeadPAN(nn.Module):
             in_channels = (self.in_channels
                            if i == 0 else self.conv_out_channels)
             padding = (self.conv_kernel_size - 1) // 2
+            # if the last layer do not relu.
+            # activation = 'relu' if i < self.num_convs - 1 else None
             self.convs.append(
-                ConvModule(
+                ConvModule(     # init already.
                     in_channels,
                     self.conv_out_channels,
                     self.conv_kernel_size,
@@ -63,7 +66,7 @@ class FCNMaskHeadPAN(nn.Module):
         for i in range(self.num_fc_convs):
             out_channels_t = (self.conv_out_channels
                             if i != self.num_fc_convs - 1 else self.conv_out_channels // 2)
-            padding = (self.conv_kernel_size -1 ) // 2
+            padding = (self.conv_kernel_size - 1) // 2
             self.fc_convs.append(
                 ConvModule(
                     self.conv_out_channels,
@@ -72,17 +75,18 @@ class FCNMaskHeadPAN(nn.Module):
                     padding=padding,
                     normalize=normalize,
                     bias=self.with_bias))
+
         fc_inchannels = self.conv_out_channels // 2
         fc_inchannels *= (self.roi_feat_size * self.roi_feat_size)
-        # same size with the deconv maps.
-        fc_outchannels = (self.roi_feat_size * self.upsample_ratio *
-                          self.roi_feat_size * self.upsample_ratio)
+        # fusion before upsample according to official implementation.
+        fc_outchannels = (self.roi_feat_size * self.roi_feat_size)
         self.mask_fc = nn.Linear(fc_inchannels, fc_outchannels)
+        # self.relu_fc = nn.ReLU(inplace=True)
 
         if self.upsample_method is None:
             self.upsample = None
         elif self.upsample_method == 'deconv':
-            self.upsample = nn.ConvTranspose2d(
+            self.upsample = nn.ConvTranspose2d(     # not relu.
                 self.conv_out_channels,
                 self.conv_out_channels,
                 self.upsample_ratio,
@@ -91,6 +95,8 @@ class FCNMaskHeadPAN(nn.Module):
             self.upsample = nn.Upsample(
                 scale_factor=self.upsample_ratio, mode=self.upsample_method)
 
+        # out_channels == num_classes + (background)
+        # and the output is the output used to sigmoid.
         out_channels = 1 if self.class_agnostic else self.num_classes
         self.conv_logits = nn.Conv2d(self.conv_out_channels, out_channels, 1)
         self.relu = nn.ReLU(inplace=True)
@@ -103,6 +109,8 @@ class FCNMaskHeadPAN(nn.Module):
             nn.init.kaiming_normal_(
                 m.weight, mode='fan_out', nonlinearity='relu')
             nn.init.constant_(m.bias, 0)
+        nn.init.normal_(self.mask_fc.weight, 0, 0.001)
+        nn.init.constant_(self.mask_fc.bias, 0)
 
     def forward(self, x):
         y = x
@@ -112,16 +120,16 @@ class FCNMaskHeadPAN(nn.Module):
                 y = x
                 for conv_ in self.fc_convs:
                     y = conv_(y)
-        # fusion before deconv according to other implementations.
+        # fusion before deconv according to official implementation.
+        y = y.view(y.size(0), -1)
+        y_fc = self.mask_fc(y).view(y.size(0), 1, x.size(2), x.size(3))
+        y_fc = y_fc.repeat(1, self.conv_out_channels, 1, 1)
+        x = y_fc + x
         if self.upsample is not None:
             x = self.upsample(x)
             if self.upsample_method == 'deconv':
                 x = self.relu(x)
-        y = y.view(y.size(0), -1)
-        y_fc = self.mask_fc(y).view(y.size(0), 1, x.size(2), x.size(3))
-        y_fc = y_fc.repeat(1, self.conv_out_channels, 1, 1)
         # fusion: element-wise sum fusion after deconv according to paper
-        x = y_fc + x
         mask_pred = self.conv_logits(x)
         return mask_pred
 
@@ -140,6 +148,7 @@ class FCNMaskHeadPAN(nn.Module):
             loss_mask = mask_cross_entropy(mask_pred, mask_targets,
                                            torch.zeros_like(labels))
         else:
+            # cross_entropy,
             loss_mask = mask_cross_entropy(mask_pred, mask_targets, labels)
         loss['loss_mask'] = loss_mask
         return loss
@@ -201,3 +210,5 @@ class FCNMaskHeadPAN(nn.Module):
             cls_segms[label - 1].append(rle)
 
         return cls_segms
+
+
