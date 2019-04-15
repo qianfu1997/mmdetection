@@ -1,11 +1,18 @@
 import os
 import os.path as osp
+<<<<<<< HEAD
 import shutil
 import time
+=======
+>>>>>>> master-origin/master
 
 import mmcv
 import numpy as np
 import torch
+<<<<<<< HEAD
+=======
+import torch.distributed as dist
+>>>>>>> master-origin/master
 from mmcv.runner import Hook, obj_from_dict
 from mmcv.parallel import scatter, collate
 from pycocotools.cocoeval import COCOeval
@@ -29,6 +36,7 @@ class DistEvalHook(Hook):
                 'dataset must be a Dataset object or a dict, not {}'.format(
                     type(dataset)))
         self.interval = interval
+<<<<<<< HEAD
         self.lock_dir = None
 
     def _barrier(self, rank, world_size):
@@ -59,13 +67,20 @@ class DistEvalHook(Hook):
     def after_run(self, runner):
         if runner.rank == 0:
             shutil.rmtree(self.lock_dir)
+=======
+>>>>>>> master-origin/master
 
     def after_train_epoch(self, runner):
         if not self.every_n_epochs(runner, self.interval):
             return
         runner.model.eval()
         results = [None for _ in range(len(self.dataset))]
+<<<<<<< HEAD
         prog_bar = mmcv.ProgressBar(len(self.dataset))
+=======
+        if runner.rank == 0:
+            prog_bar = mmcv.ProgressBar(len(self.dataset))
+>>>>>>> master-origin/master
         for idx in range(runner.rank, len(self.dataset), runner.world_size):
             data = self.dataset[idx]
             data_gpu = scatter(
@@ -79,12 +94,22 @@ class DistEvalHook(Hook):
             results[idx] = result
 
             batch_size = runner.world_size
+<<<<<<< HEAD
             for _ in range(batch_size):
                 prog_bar.update()
 
         if runner.rank == 0:
             print('\n')
             self._barrier(runner.rank, runner.world_size)
+=======
+            if runner.rank == 0:
+                for _ in range(batch_size):
+                    prog_bar.update()
+
+        if runner.rank == 0:
+            print('\n')
+            dist.barrier()
+>>>>>>> master-origin/master
             for i in range(1, runner.world_size):
                 tmp_file = osp.join(runner.work_dir, 'temp_{}.pkl'.format(i))
                 tmp_results = mmcv.load(tmp_file)
@@ -96,8 +121,13 @@ class DistEvalHook(Hook):
             tmp_file = osp.join(runner.work_dir,
                                 'temp_{}.pkl'.format(runner.rank))
             mmcv.dump(results, tmp_file)
+<<<<<<< HEAD
             self._barrier(runner.rank, runner.world_size)
         self._barrier(runner.rank, runner.world_size)
+=======
+            dist.barrier()
+        dist.barrier()
+>>>>>>> master-origin/master
 
     def evaluate(self):
         raise NotImplementedError
@@ -123,7 +153,11 @@ class DistEvalmAPHook(DistEvalHook):
                 labels = np.concatenate([labels, ann['labels_ignore']])
             gt_bboxes.append(bboxes)
             gt_labels.append(labels)
+<<<<<<< HEAD
         # If the dataset is VOC2007, then use 11 points mAP postmodule.
+=======
+        # If the dataset is VOC2007, then use 11 points mAP evaluation.
+>>>>>>> master-origin/master
         if hasattr(self.dataset, 'year') and self.dataset.year == 2007:
             ds_name = 'voc07'
         else:
@@ -152,7 +186,11 @@ class CocoDistEvalRecallHook(DistEvalHook):
         self.iou_thrs = np.array(iou_thrs, dtype=np.float32)
 
     def evaluate(self, runner, results):
+<<<<<<< HEAD
         # the official coco postmodule is too slow, here we use our own
+=======
+        # the official coco evaluation is too slow, here we use our own
+>>>>>>> master-origin/master
         # implementation instead, which may get slightly different results
         ar = fast_eval_recall(results, self.dataset.coco, self.proposal_nums,
                               self.iou_thrs)
@@ -179,7 +217,18 @@ class CocoDistEvalmAPHook(DistEvalHook):
             cocoEval.evaluate()
             cocoEval.accumulate()
             cocoEval.summarize()
+<<<<<<< HEAD
             field = '{}_mAP'.format(res_type)
             runner.log_buffer.output[field] = cocoEval.stats[0]
+=======
+            metrics = ['mAP', 'mAP_50', 'mAP_75', 'mAP_s', 'mAP_m', 'mAP_l']
+            for i in range(len(metrics)):
+                key = '{}_{}'.format(res_type, metrics[i])
+                val = float('{:.3f}'.format(cocoEval.stats[i]))
+                runner.log_buffer.output[key] = val
+            runner.log_buffer.output['{}_mAP_copypaste'.format(res_type)] = (
+                '{ap[0]:.3f} {ap[1]:.3f} {ap[2]:.3f} {ap[3]:.3f} '
+                '{ap[4]:.3f} {ap[5]:.3f}').format(ap=cocoEval.stats[:6])
+>>>>>>> master-origin/master
         runner.log_buffer.ready = True
         os.remove(tmp_file)

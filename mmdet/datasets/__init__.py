@@ -1,5 +1,8 @@
 from .custom import CustomDataset
+<<<<<<< HEAD
 from .custom_crop import CustomCropDataset
+=======
+>>>>>>> master-origin/master
 from .xml_style import XMLDataset
 from .coco import CocoDataset
 from .voc import VOCDataset
@@ -8,6 +11,7 @@ from .utils import to_tensor, random_scale, show_ann, get_dataset
 from .concat_dataset import ConcatDataset
 from .repeat_dataset import RepeatDataset
 from .extra_aug import ExtraAugmentation
+<<<<<<< HEAD
 from .ArtDataset import ArtDataset
 from .LsvtDataset_mod2 import LsvtDataset
 from .ArtCropDataset import ArtCropDataset

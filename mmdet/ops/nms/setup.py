@@ -1,11 +1,20 @@
 import os.path as osp
+<<<<<<< HEAD
 from distutils.core import setup, Extension
+=======
+from setuptools import setup, Extension
+>>>>>>> master-origin/master
 
 import numpy as np
 from Cython.Build import cythonize
 from Cython.Distutils import build_ext
+<<<<<<< HEAD
 
 # extensions
+=======
+from torch.utils.cpp_extension import BuildExtension, CUDAExtension
+
+>>>>>>> master-origin/master
 ext_args = dict(
     include_dirs=[np.get_include()],
     language='c++',
@@ -16,9 +25,13 @@ ext_args = dict(
 )
 
 extensions = [
+<<<<<<< HEAD
     Extension('cpu_nms', ['cpu_nms.pyx'], **ext_args),
     Extension('cpu_soft_nms', ['cpu_soft_nms.pyx'], **ext_args),
     Extension('gpu_nms', ['gpu_nms.pyx', 'nms_kernel.cu'], **ext_args),
+=======
+    Extension('soft_nms_cpu', ['src/soft_nms_cpu.pyx'], **ext_args),
+>>>>>>> master-origin/master
 ]
 
 
@@ -59,7 +72,10 @@ def customize_compiler_for_nvcc(self):
     self._compile = _compile
 
 
+<<<<<<< HEAD
 # run the customize_compiler
+=======
+>>>>>>> master-origin/master
 class custom_build_ext(build_ext):
 
     def build_extensions(self):
@@ -68,7 +84,27 @@ class custom_build_ext(build_ext):
 
 
 setup(
+<<<<<<< HEAD
     name='nms',
     cmdclass={'build_ext': custom_build_ext},
     ext_modules=cythonize(extensions),
 )
+=======
+    name='soft_nms',
+    cmdclass={'build_ext': custom_build_ext},
+    ext_modules=cythonize(extensions),
+)
+
+setup(
+    name='nms_cuda',
+    ext_modules=[
+        CUDAExtension('nms_cuda', [
+            'src/nms_cuda.cpp',
+            'src/nms_kernel.cu',
+        ]),
+        CUDAExtension('nms_cpu', [
+            'src/nms_cpu.cpp',
+        ]),
+    ],
+    cmdclass={'build_ext': BuildExtension})
+>>>>>>> master-origin/master

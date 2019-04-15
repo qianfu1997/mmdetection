@@ -10,7 +10,9 @@ class InstanceBalancedPosSampler(RandomSampler):
         pos_inds = torch.nonzero(assign_result.gt_inds > 0)
         if pos_inds.numel() != 0:
             pos_inds = pos_inds.squeeze(1)
+
         # numel:return the num of list items.
+
         if pos_inds.numel() <= num_expected:
             return pos_inds
         else:

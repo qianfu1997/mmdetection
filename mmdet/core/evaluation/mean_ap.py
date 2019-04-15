@@ -63,7 +63,11 @@ def tpfp_imagenet(det_bboxes,
     Args:
         det_bbox (ndarray): the detected bbox
         gt_bboxes (ndarray): ground truth bboxes of this image
+<<<<<<< HEAD
         gt_ignore (ndarray): indicate if gts are ignored for postmodule or not
+=======
+        gt_ignore (ndarray): indicate if gts are ignored for evaluation or not
+>>>>>>> master-origin/master
         default_iou_thr (float): the iou thresholds for medium and large bboxes
         area_ranges (list or None): gt bbox area ranges
 
@@ -140,7 +144,11 @@ def tpfp_default(det_bboxes, gt_bboxes, gt_ignore, iou_thr, area_ranges=None):
     Args:
         det_bbox (ndarray): the detected bbox
         gt_bboxes (ndarray): ground truth bboxes of this image
+<<<<<<< HEAD
         gt_ignore (ndarray): indicate if gts are ignored for postmodule or not
+=======
+        gt_ignore (ndarray): indicate if gts are ignored for evaluation or not
+>>>>>>> master-origin/master
         iou_thr (float): the iou thresholds
 
     Returns:

@@ -51,7 +51,7 @@ def main():
         '--iou-thr',
         type=float,
         default=0.5,
-        help='IoU threshold for postmodule')
+        help='IoU threshold for evaluation')
     args = parser.parse_args()
     cfg = mmcv.Config.fromfile(args.config)
     test_dataset = mmcv.runner.obj_from_dict(cfg.data.test, datasets)

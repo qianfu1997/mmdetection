@@ -19,7 +19,11 @@ class FCNMaskHead(nn.Module):
                  conv_kernel_size=3,
                  conv_out_channels=256,
                  upsample_method='deconv',
+<<<<<<< HEAD
                  upsample_ratio=2,      # get the output of rpn and then upsample.
+=======
+                 upsample_ratio=2,
+>>>>>>> master-origin/master
                  num_classes=81,
                  class_agnostic=False,
                  normalize=None):
@@ -41,7 +45,10 @@ class FCNMaskHead(nn.Module):
         self.with_bias = normalize is None
 
         self.convs = nn.ModuleList()
+<<<<<<< HEAD
         # here to add convs. too deep may not be useful.
+=======
+>>>>>>> master-origin/master
         for i in range(self.num_convs):
             in_channels = (self.in_channels
                            if i == 0 else self.conv_out_channels)
@@ -134,17 +141,26 @@ class FCNMaskHead(nn.Module):
         bboxes = det_bboxes.cpu().numpy()[:, :4]
         labels = det_labels.cpu().numpy() + 1
 
+<<<<<<< HEAD
         if rescale:     # keep the img size as the ori size.
             img_h, img_w = ori_shape[:2]
         else:
             # if not rescale, that means the output bboxes fit to
             # the size of input images.
+=======
+        if rescale:
+            img_h, img_w = ori_shape[:2]
+        else:
+>>>>>>> master-origin/master
             img_h = np.round(ori_shape[0] * scale_factor).astype(np.int32)
             img_w = np.round(ori_shape[1] * scale_factor).astype(np.int32)
             scale_factor = 1.0
 
         for i in range(bboxes.shape[0]):
+<<<<<<< HEAD
             # the bbox are are fit to the rescaled image.
+=======
+>>>>>>> master-origin/master
             bbox = (bboxes[i, :] / scale_factor).astype(np.int32)
             label = labels[i]
             w = max(bbox[2] - bbox[0] + 1, 1)
@@ -156,7 +172,11 @@ class FCNMaskHead(nn.Module):
                 mask_pred_ = mask_pred[i, 0, :, :]
             im_mask = np.zeros((img_h, img_w), dtype=np.uint8)
 
+<<<<<<< HEAD
             bbox_mask = mmcv.imresize(mask_pred_, (w, h))   # expand bbox before.
+=======
+            bbox_mask = mmcv.imresize(mask_pred_, (w, h))
+>>>>>>> master-origin/master
             bbox_mask = (bbox_mask > rcnn_test_cfg.mask_thr_binary).astype(
                 np.uint8)
             im_mask[bbox[1]:bbox[1] + h, bbox[0]:bbox[0] + w] = bbox_mask
@@ -165,7 +185,10 @@ class FCNMaskHead(nn.Module):
             cls_segms[label - 1].append(rle)
 
         return cls_segms
+<<<<<<< HEAD
 
 
 
 
+=======
+>>>>>>> master-origin/master

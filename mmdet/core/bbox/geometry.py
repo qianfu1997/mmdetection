@@ -45,7 +45,9 @@ def bbox_overlaps(bboxes1, bboxes2, mode='iou', is_aligned=False):
         else:
             ious = overlap / area1
     else:
+
         """ bboxes1[:, None, :2] -> [m, 1, 4] """
+
         lt = torch.max(bboxes1[:, None, :2], bboxes2[:, :2])  # [rows, cols, 2]
         rb = torch.min(bboxes1[:, None, 2:], bboxes2[:, 2:])  # [rows, cols, 2]
 

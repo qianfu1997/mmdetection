@@ -4,9 +4,15 @@ import torch
 class AnchorGenerator(object):
 
     def __init__(self, base_size, scales, ratios, scale_major=True, ctr=None):
+<<<<<<< HEAD
         self.base_size = base_size      # multi-level feat map sizes.
         self.scales = torch.Tensor(scales)  # anchor scales.
         self.ratios = torch.Tensor(ratios)  # anchor ratios.
+=======
+        self.base_size = base_size
+        self.scales = torch.Tensor(scales)
+        self.ratios = torch.Tensor(ratios)
+>>>>>>> master-origin/master
         self.scale_major = scale_major
         self.ctr = ctr
         self.base_anchors = self.gen_base_anchors()
@@ -43,7 +49,10 @@ class AnchorGenerator(object):
         return base_anchors
 
     def _meshgrid(self, x, y, row_major=True):
+<<<<<<< HEAD
         # create the matrix.
+=======
+>>>>>>> master-origin/master
         xx = x.repeat(len(y))
         yy = y.view(-1, 1).repeat(1, len(x)).view(-1)
         if row_major:
@@ -52,7 +61,10 @@ class AnchorGenerator(object):
             return yy, xx
 
     def grid_anchors(self, featmap_size, stride=16, device='cuda'):
+<<<<<<< HEAD
         """ stride is map to max size. """
+=======
+>>>>>>> master-origin/master
         base_anchors = self.base_anchors.to(device)
 
         feat_h, feat_w = featmap_size
@@ -73,8 +85,11 @@ class AnchorGenerator(object):
 
     def valid_flags(self, featmap_size, valid_size, device='cuda'):
         feat_h, feat_w = featmap_size
+<<<<<<< HEAD
         # valid_w, valid_h is the boundary
         # of valid anchors.
+=======
+>>>>>>> master-origin/master
         valid_h, valid_w = valid_size
         assert valid_h <= feat_h and valid_w <= feat_w
         valid_x = torch.zeros(feat_w, dtype=torch.uint8, device=device)

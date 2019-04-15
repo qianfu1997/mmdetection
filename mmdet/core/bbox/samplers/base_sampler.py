@@ -58,6 +58,7 @@ class BaseSampler(metaclass=ABCMeta):
             gt_flags = torch.cat([gt_ones, gt_flags])
 
         # select several pos proposal according to pos_fraction.
+
         num_expected_pos = int(self.num * self.pos_fraction)
         pos_inds = self.pos_sampler._sample_pos(
             assign_result, num_expected_pos, bboxes=bboxes, **kwargs)

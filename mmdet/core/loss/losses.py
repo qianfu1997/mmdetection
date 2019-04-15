@@ -2,6 +2,11 @@
 import torch
 import torch.nn.functional as F
 
+<<<<<<< HEAD
+=======
+from ...ops import sigmoid_focal_loss
+
+>>>>>>> master-origin/master
 
 def weighted_nll_loss(pred, label, weight, avg_factor=None):
     if avg_factor is None:
@@ -21,6 +26,11 @@ def weighted_cross_entropy(pred, label, weight, avg_factor=None, reduce=True):
 
 
 def weighted_binary_cross_entropy(pred, label, weight, avg_factor=None):
+<<<<<<< HEAD
+=======
+    if pred.dim() != label.dim():
+        label, weight = _expand_binary_labels(label, weight, pred.size(-1))
+>>>>>>> master-origin/master
     if avg_factor is None:
         avg_factor = max(torch.sum(weight > 0).float().item(), 1.)
     return F.binary_cross_entropy_with_logits(
@@ -28,6 +38,7 @@ def weighted_binary_cross_entropy(pred, label, weight, avg_factor=None):
         reduction='sum')[None] / avg_factor
 
 
+<<<<<<< HEAD
 def sigmoid_focal_loss(pred,
                        target,
                        weight,
@@ -35,6 +46,14 @@ def sigmoid_focal_loss(pred,
                        alpha=0.25,
                        reduction='mean'):
     """ sigmoid then binary_cross_entropy_with_logits """
+=======
+def py_sigmoid_focal_loss(pred,
+                          target,
+                          weight,
+                          gamma=2.0,
+                          alpha=0.25,
+                          reduction='mean'):
+>>>>>>> master-origin/master
     pred_sigmoid = pred.sigmoid()
     target = target.type_as(pred)
     pt = (1 - pred_sigmoid) * target + pred_sigmoid * (1 - target)
@@ -61,6 +80,7 @@ def weighted_sigmoid_focal_loss(pred,
                                 num_classes=80):
     if avg_factor is None:
         avg_factor = torch.sum(weight > 0).float().item() / num_classes + 1e-6
+<<<<<<< HEAD
     return sigmoid_focal_loss(
         pred, target, weight, gamma=gamma, alpha=alpha,
         reduction='sum')[None] / avg_factor
@@ -68,6 +88,14 @@ def weighted_sigmoid_focal_loss(pred,
 
 def mask_cross_entropy(pred, target, label):
     """ use binary cross entropy to train the mask branch."""
+=======
+    return torch.sum(
+        sigmoid_focal_loss(pred, target, gamma, alpha, 'none') * weight.view(
+            -1, 1))[None] / avg_factor
+
+
+def mask_cross_entropy(pred, target, label):
+>>>>>>> master-origin/master
     num_rois = pred.size()[0]
     inds = torch.arange(0, num_rois, dtype=torch.long, device=pred.device)
     pred_slice = pred[inds, label].squeeze(1)
@@ -117,4 +145,15 @@ def accuracy(pred, target, topk=1):
     return res[0] if return_single else res
 
 
+<<<<<<< HEAD
 
+=======
+def _expand_binary_labels(labels, label_weights, label_channels):
+    bin_labels = labels.new_full((labels.size(0), label_channels), 0)
+    inds = torch.nonzero(labels >= 1).squeeze()
+    if inds.numel() > 0:
+        bin_labels[inds, labels[inds] - 1] = 1
+    bin_label_weights = label_weights.view(-1, 1).expand(
+        label_weights.size(0), label_channels)
+    return bin_labels, bin_label_weights
+>>>>>>> master-origin/master

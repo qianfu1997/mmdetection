@@ -40,6 +40,7 @@ class CustomDataset(Dataset):
                  img_prefix,
                  img_scale,
                  img_norm_cfg,
+                 multiscale_mode='value',
                  size_divisor=None,
                  proposal_file=None,
                  num_max_proposals=1000,
@@ -74,6 +75,10 @@ class CustomDataset(Dataset):
         # normalization configs
         self.img_norm_cfg = img_norm_cfg
 
+
+        # multi-scale mode (only applicable for multi-scale training)
+        self.multiscale_mode = multiscale_mode
+        assert multiscale_mode in ['value', 'range']
         # max proposals per image
         self.num_max_proposals = num_max_proposals
         # flip ratio
@@ -161,6 +166,7 @@ class CustomDataset(Dataset):
     def prepare_train_img(self, idx):
         img_info = self.img_infos[idx]
         # load image
+
         assert osp.isfile(osp.join(self.img_prefix, img_info['filename']))
         img = mmcv.imread(osp.join(self.img_prefix, img_info['filename']))
         assert len(img.shape) == 3
@@ -181,6 +187,7 @@ class CustomDataset(Dataset):
                 proposals = proposals[:, :4]
             else:
                 scores = None
+
         # get ann here.
         ann = self.get_ann_info(idx)
         gt_bboxes = ann['bboxes']
@@ -199,7 +206,10 @@ class CustomDataset(Dataset):
 
         # apply transforms
         flip = True if np.random.rand() < self.flip_ratio else False
-        img_scale = random_scale(self.img_scales)  # sample a scale
+
+        # randomly sample a scale
+        img_scale = random_scale(self.img_scales, self.multiscale_mode)
+
         img, img_shape, pad_shape, scale_factor = self.img_transform(
             img, img_scale, flip, keep_ratio=self.resize_keep_ratio)
         img = img.copy()

@@ -1,10 +1,7 @@
 from mmdet.core import (bbox2roi, bbox_mapping, merge_aug_proposals,
                         merge_aug_bboxes, merge_aug_masks, multiclass_nms)
 
-
 """ for ga_anchor here to add TestMixin """
-
-
 class RPNTestMixin(object):
 
     def simple_test_rpn(self, x, img_meta, rpn_test_cfg):
@@ -20,7 +17,8 @@ class RPNTestMixin(object):
             proposal_list = self.simple_test_rpn(x, img_meta, rpn_test_cfg)
             for i, proposals in enumerate(proposal_list):
                 aug_proposals[i].append(proposals)
-        # after merging, proposals will be rescaled to the size of input image.
+
+        # after merging, proposals will be rescaled to the original image size
         merged_proposals = [
             merge_aug_proposals(proposals, img_meta, rpn_test_cfg)
             for proposals, img_meta in zip(aug_proposals, img_metas)
@@ -29,7 +27,6 @@ class RPNTestMixin(object):
 
 
 class BBoxTestMixin(object):
-
     # the TestMixin for test bbox head.
     def simple_test_bboxes(self,
                            x,
@@ -70,12 +67,9 @@ class BBoxTestMixin(object):
                                      scale_factor, flip)
             rois = bbox2roi([proposals])
             # recompute feature maps to save GPU memory
-            # for each feats, generate corresponding roi_feats.
             roi_feats = self.bbox_roi_extractor(
                 x[:len(self.bbox_roi_extractor.featmap_strides)], rois)
             cls_score, bbox_pred = self.bbox_head(roi_feats)
-            # get_det_bboxes from rois. didn't select the proposals,
-            # so all proposals are contained.
             bboxes, scores = self.bbox_head.get_det_bboxes(
                 rois,
                 cls_score,
@@ -84,12 +78,9 @@ class BBoxTestMixin(object):
                 scale_factor,
                 rescale=False,
                 cfg=None)
-            # save all aug_bboxes. bboxes from each feature map.
             aug_bboxes.append(bboxes)
             aug_scores.append(scores)
         # after merging, bboxes will be rescaled to the original image size
-        # all the bboxes generated from rescaled images will be resized to
-        # the first img size.
         merged_bboxes, merged_scores = merge_aug_bboxes(
             aug_bboxes, aug_scores, img_metas, rcnn_test_cfg)
         det_bboxes, det_labels = multiclass_nms(
@@ -113,27 +104,20 @@ class MaskTestMixin(object):
         if det_bboxes.shape[0] == 0:
             segm_result = [[] for _ in range(self.mask_head.num_classes - 1)]
         else:
-            # det_bboxes are fit to the ori shape if rescale.
-            # if rescale, in order to get features from rescaled feature map
-            # needed to multiply scale_factor first.
+            # if det_bboxes is rescaled to the original image size, we need to
+            # rescale it back to the testing scale to obtain RoIs.
             _bboxes = (det_bboxes[:, :4] * scale_factor
                        if rescale else det_bboxes)
             mask_rois = bbox2roi([_bboxes])
             mask_feats = self.mask_roi_extractor(
                 x[:len(self.mask_roi_extractor.featmap_strides)], mask_rois)
             mask_pred = self.mask_head(mask_feats)
-            # for simple test, the mask are rescaled to the rescaled shape.
             segm_result = self.mask_head.get_seg_masks(
-                # _bboxes are fit to the rescaled feature maps.
                 mask_pred, _bboxes, det_labels, self.test_cfg.rcnn, ori_shape,
-                scale_factor, rescale)  # the scale_factor
+                scale_factor, rescale)
         return segm_result
 
     def aug_test_mask(self, feats, img_metas, det_bboxes, det_labels):
-        """ as for aug_test_mask
-            the masks generated from this function are fit to the
-            original imgs.
-        """
         if det_bboxes.shape[0] == 0:
             segm_result = [[] for _ in range(self.mask_head.num_classes - 1)]
         else:

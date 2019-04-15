@@ -5,12 +5,20 @@ from ..utils import multi_apply
 
 
 def anchor_target(anchor_list,
+<<<<<<< HEAD
                   valid_flag_list,          # the anchors that within boundary.
+=======
+                  valid_flag_list,
+>>>>>>> master-origin/master
                   gt_bboxes_list,
                   img_metas,
                   target_means,
                   target_stds,
                   cfg,
+<<<<<<< HEAD
+=======
+                  gt_bboxes_ignore_list=None,
+>>>>>>> master-origin/master
                   gt_labels_list=None,
                   label_channels=1,
                   sampling=True,
@@ -41,6 +49,11 @@ def anchor_target(anchor_list,
         valid_flag_list[i] = torch.cat(valid_flag_list[i])
 
     # compute targets for each image
+<<<<<<< HEAD
+=======
+    if gt_bboxes_ignore_list is None:
+        gt_bboxes_ignore_list = [None for _ in range(num_imgs)]
+>>>>>>> master-origin/master
     if gt_labels_list is None:
         gt_labels_list = [None for _ in range(num_imgs)]
     (all_labels, all_label_weights, all_bbox_targets, all_bbox_weights,
@@ -49,6 +62,10 @@ def anchor_target(anchor_list,
          anchor_list,
          valid_flag_list,
          gt_bboxes_list,
+<<<<<<< HEAD
+=======
+         gt_bboxes_ignore_list,
+>>>>>>> master-origin/master
          gt_labels_list,
          img_metas,
          target_means=target_means,
@@ -88,8 +105,14 @@ def images_to_levels(target, num_level_anchors):
 
 
 def anchor_target_single(flat_anchors,
+<<<<<<< HEAD
                          valid_flags,           # the anchors that within boundary.
                          gt_bboxes,             #
+=======
+                         valid_flags,
+                         gt_bboxes,
+                         gt_bboxes_ignore,
+>>>>>>> master-origin/master
                          gt_labels,
                          img_meta,
                          target_means,
@@ -108,12 +131,20 @@ def anchor_target_single(flat_anchors,
 
     if sampling:
         assign_result, sampling_result = assign_and_sample(
+<<<<<<< HEAD
             anchors, gt_bboxes, None, None, cfg)
     else:
         bbox_assigner = build_assigner(cfg.assigner)
         # anchors are the list of all valid anchors.
         assign_result = bbox_assigner.assign(anchors, gt_bboxes, None,
                                              gt_labels)
+=======
+            anchors, gt_bboxes, gt_bboxes_ignore, None, cfg)
+    else:
+        bbox_assigner = build_assigner(cfg.assigner)
+        assign_result = bbox_assigner.assign(anchors, gt_bboxes,
+                                             gt_bboxes_ignore, gt_labels)
+>>>>>>> master-origin/master
         bbox_sampler = PseudoSampler()
         sampling_result = bbox_sampler.sample(assign_result, anchors,
                                               gt_bboxes)
@@ -122,20 +153,29 @@ def anchor_target_single(flat_anchors,
     bbox_targets = torch.zeros_like(anchors)
     bbox_weights = torch.zeros_like(anchors)
     labels = anchors.new_zeros(num_valid_anchors, dtype=torch.long)
+<<<<<<< HEAD
     # weights for all anchors, whether to calculate the loss
     #
+=======
+>>>>>>> master-origin/master
     label_weights = anchors.new_zeros(num_valid_anchors, dtype=torch.float)
 
     pos_inds = sampling_result.pos_inds
     neg_inds = sampling_result.neg_inds
     if len(pos_inds) > 0:
+<<<<<<< HEAD
         # get the gt_target_deltas through gt_bboxes and pos_anchors.
         # they are one-to-one corresponding.
+=======
+>>>>>>> master-origin/master
         pos_bbox_targets = bbox2delta(sampling_result.pos_bboxes,
                                       sampling_result.pos_gt_bboxes,
                                       target_means, target_stds)
         bbox_targets[pos_inds, :] = pos_bbox_targets
+<<<<<<< HEAD
         # for the pos_anchors the weight set to 1.0
+=======
+>>>>>>> master-origin/master
         bbox_weights[pos_inds, :] = 1.0
         if gt_labels is None:
             labels[pos_inds] = 1
@@ -144,10 +184,15 @@ def anchor_target_single(flat_anchors,
         if cfg.pos_weight <= 0:
             label_weights[pos_inds] = 1.0
         else:
+<<<<<<< HEAD
             # set the pos_weight according to cfg setting.
             label_weights[pos_inds] = cfg.pos_weight
     if len(neg_inds) > 0:
         # for the neg_inds, set the weight to 1.0 and calculate the loss.
+=======
+            label_weights[pos_inds] = cfg.pos_weight
+    if len(neg_inds) > 0:
+>>>>>>> master-origin/master
         label_weights[neg_inds] = 1.0
 
     # map up to original set of anchors
@@ -155,9 +200,12 @@ def anchor_target_single(flat_anchors,
         num_total_anchors = flat_anchors.size(0)
         labels = unmap(labels, num_total_anchors, inside_flags)
         label_weights = unmap(label_weights, num_total_anchors, inside_flags)
+<<<<<<< HEAD
         if label_channels > 1:
             labels, label_weights = expand_binary_labels(
                 labels, label_weights, label_channels)
+=======
+>>>>>>> master-origin/master
         bbox_targets = unmap(bbox_targets, num_total_anchors, inside_flags)
         bbox_weights = unmap(bbox_weights, num_total_anchors, inside_flags)
 
@@ -165,6 +213,7 @@ def anchor_target_single(flat_anchors,
             neg_inds)
 
 
+<<<<<<< HEAD
 def expand_binary_labels(labels, label_weights, label_channels):
     bin_labels = labels.new_full((labels.size(0), label_channels), 0)
     inds = torch.nonzero(labels >= 1).squeeze()
@@ -175,6 +224,8 @@ def expand_binary_labels(labels, label_weights, label_channels):
     return bin_labels, bin_label_weights
 
 
+=======
+>>>>>>> master-origin/master
 def anchor_inside_flags(flat_anchors, valid_flags, img_shape,
                         allowed_border=0):
     img_h, img_w = img_shape[:2]
@@ -197,6 +248,11 @@ def unmap(data, count, inds, fill=0):
         ret[inds] = data
     else:
         new_size = (count, ) + data.size()[1:]
+<<<<<<< HEAD
         ret = data.new_full(new_size, fill)     # use data to fill the original set.
         ret[inds, :] = data                     # and the inds are the data.
+=======
+        ret = data.new_full(new_size, fill)
+        ret[inds, :] = data
+>>>>>>> master-origin/master
     return ret

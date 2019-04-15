@@ -19,7 +19,7 @@ def main():
         type=int,
         nargs='+',
         default=[100, 300, 1000],
-        help='proposal numbers, only used for recall postmodule')
+        help='proposal numbers, only used for recall evaluation')
     args = parser.parse_args()
     coco_eval(args.result, args.types, args.ann, args.max_dets)
 

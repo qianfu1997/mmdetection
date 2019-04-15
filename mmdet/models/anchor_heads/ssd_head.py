@@ -130,8 +130,19 @@ class SSDHead(AnchorHead):
             avg_factor=num_total_samples)
         return loss_cls[None], loss_reg
 
+<<<<<<< HEAD
     def loss(self, cls_scores, bbox_preds, gt_bboxes, gt_labels, img_metas,
              cfg):
+=======
+    def loss(self,
+             cls_scores,
+             bbox_preds,
+             gt_bboxes,
+             gt_labels,
+             img_metas,
+             cfg,
+             gt_bboxes_ignore=None):
+>>>>>>> master-origin/master
         featmap_sizes = [featmap.size()[-2:] for featmap in cls_scores]
         assert len(featmap_sizes) == len(self.anchor_generators)
 
@@ -145,6 +156,10 @@ class SSDHead(AnchorHead):
             self.target_means,
             self.target_stds,
             cfg,
+<<<<<<< HEAD
+=======
+            gt_bboxes_ignore_list=gt_bboxes_ignore,
+>>>>>>> master-origin/master
             gt_labels_list=gt_labels,
             label_channels=1,
             sampling=False,
