@@ -1,19 +1,11 @@
 import mmcv
 import numpy as np
-<<<<<<< HEAD
-import torch
-
-from mmdet.datasets import to_tensor
-from mmdet.datasets.transforms import ImageTransform
-from mmdet.core import get_classes
-=======
 import pycocotools.mask as maskUtils
 import torch
 
 from mmdet.core import get_classes
 from mmdet.datasets import to_tensor
 from mmdet.datasets.transforms import ImageTransform
->>>>>>> master-origin/master
 
 
 def _prepare_data(img, img_transform, cfg, device):
@@ -59,17 +51,6 @@ def inference_detector(model, imgs, cfg, device='cuda:0'):
         return _inference_generator(model, imgs, img_transform, cfg, device)
 
 
-<<<<<<< HEAD
-def show_result(img, result, dataset='coco', score_thr=0.3):
-    class_names = get_classes(dataset)
-    labels = [
-        np.full(bbox.shape[0], i, dtype=np.int32)
-        for i, bbox in enumerate(result)
-    ]
-    labels = np.concatenate(labels)
-    bboxes = np.vstack(result)
-    img = mmcv.imread(img)
-=======
 def show_result(img, result, dataset='coco', score_thr=0.3, out_file=None):
     img = mmcv.imread(img)
     class_names = get_classes(dataset)
@@ -93,15 +74,11 @@ def show_result(img, result, dataset='coco', score_thr=0.3, out_file=None):
         for i, bbox in enumerate(bbox_result)
     ]
     labels = np.concatenate(labels)
->>>>>>> master-origin/master
     mmcv.imshow_det_bboxes(
         img.copy(),
         bboxes,
         labels,
         class_names=class_names,
-<<<<<<< HEAD
-        score_thr=score_thr)
-=======
         score_thr=score_thr,
         show=out_file is None)
->>>>>>> master-origin/master
+

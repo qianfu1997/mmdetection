@@ -24,7 +24,7 @@ label_ids = {name: i + 1 for i, name in enumerate(art_classes())}
 
 debug_path = '/home/data1/sxg/IC19/mmdetection-master/visualization/debug/'
 
-identifiers = {"art": "_art_", "LSVT": "_full_", "IC17": "_IC17_", "IC19": "_IC19_"}
+identifiers = {'art': '_art_', 'LSVT': '_full_', 'IC17': '_IC17_', 'IC19': '_IC19_'}
 
 
 class ArtCropDataset(CustomCropDataset):
@@ -93,22 +93,73 @@ class ArtCropDataset(CustomCropDataset):
         return bboxes, labels, bboxes_ignore, labels_ignore
 
     def load_annotations(self, ann_file):
+        assert osp.isdir(self.img_prefix), 'Error: wrong path'
+        assert osp.isfile(ann_file), 'Error: wrong ann file'
+        detailed_annotation = None
+        img_infos = []
+        files = os.listdir(self.img_prefix)
+        if 'art' in ann_file:
+            detailed_ann_file = ann_file.replace('_art_', '_detail_')
+        elif 'LSVT' in ann_file:
+            detailed_ann_file = ann_file.replace('_full_', '_detail_')
+        elif 'IC17' in ann_file:
+            detailed_ann_file = ann_file.replace('_IC17_', '_detail_')
+        else:
+            detailed_ann_file = ann_file.replace('_IC19_', '_detail_')
+
+        with open(ann_file, 'r', encoding='utf-8') as f:
+            gt_annotations = json.loads(f.read(), object_pairs_hook=OrderedDict)
+        if osp.isfile(detailed_ann_file):
+            with open(detailed_ann_file, 'r', encoding='utf-8') as f:
+                detailed_annotation = json.loads(f.read(), object_pairs_hook=OrderedDict)
+
+        for indx in range(len(files)):
+            name = osp.splitext(files[indx])[0]
+            if detailed_annotation is None:
+                img = cv2.imread(osp.join(self.img_prefix, files[indx]))
+                height, width = img.shape[:2]
+            else:
+                height, width = detailed_annotation[name]['height'], detailed_annotation[name]['width']
+            info = {
+                'filename': files[indx],
+                'height': height,
+                'width': width,
+                'img_annotation': gt_annotations[name]
+            }# info
+            img_infos.append(info)
+            if indx % 1000 == 0:
+                print('{:d} % {:d}'.format(indx, len(files)))
+        #     # for debug
+        #     name = 'gt_805'
+        #     if detailed_annotation is None:
+        #         img = cv2.imread(osp.join(self.img_prefix, name + '.jpg'))
+        #         height, width = img.shape[:2]
+        #     else:
+        #         height, width = detailed_annotation[name]['height'], detailed_annotation[name]['width']
+        #     info = {
+        #         'filename': name + '.jpg',
+        #         'height': height,
+        #         'width': width,
+        #         'img_annotation': gt_annotations[name]
+        #     }
+        #     img_infos.append(info)
+        return img_infos
+
+    def load_annotations(self, ann_file):
         assert osp.isdir(self.img_prefix), 'Error:wrong path'
         if not self.test_mode:
             assert osp.isfile(ann_file)
         detailed_annotation = None
         gt_annotations = None
-        detailed_ann_file = None
         img_infos = []
         files = os.listdir(self.img_prefix)
         if ann_file is not None:
-            for identifier in ["art", "LSVT", "IC17", "IC19"]:
+            for identifier in ['art', 'LSVT', 'IC17', 'IC19']:
                 identifier = identifiers[identifier]
-                if str(identifier) in ann_file:
-                    detailed_ann_file = ann_file.replace(str(identifier), '_detail_')
+                detailed_ann_file = ann_file.replace(identifier, '_detail_') if identifier in ann_file else None
             with open(ann_file, 'r', encoding='utf-8') as f:
                 gt_annotations = json.loads(f.read(), object_pairs_hook=OrderedDict)
-            if detailed_ann_file is not None and osp.isfile(detailed_ann_file):
+            if osp.isfile(detailed_ann_file):
                 with open(detailed_ann_file, 'r', encoding='utf-8') as f:
                     detailed_annotation = json.loads(f.read(), object_pairs_hook=OrderedDict)
 
@@ -118,7 +169,7 @@ class ArtCropDataset(CustomCropDataset):
                 img = cv2.imread(osp.join(self.img_prefix, files[indx]))
                 height, width = img.shape[:2]
             else:
-                height, width = detailed_annotation[name]['height'], detailed_annotation[name]['width']
+                height, width = detailed_annotation[name]
             img_annotation = gt_annotations[name] if gt_annotations is not None else None
             info = {
                 'filename': files[indx],
@@ -130,6 +181,7 @@ class ArtCropDataset(CustomCropDataset):
             if indx % 1000 == 0:
                 print('{:d} % {:d}'.format(indx, len(files)))
         return img_infos
+
 
     def generate_masks_ann(self, height, width, annotations):
         gt_masks = []

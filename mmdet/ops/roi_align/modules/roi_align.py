@@ -1,17 +1,12 @@
 from torch.nn.modules.module import Module
 from ..functions.roi_align import RoIAlignFunction
 
-
 class RoIAlign(Module):
 
     def __init__(self, out_size, spatial_scale, sample_num=0):
         super(RoIAlign, self).__init__()
 
         self.out_size = out_size
-<<<<<<< HEAD
-        # spatial_scale is the stride to original image.
-=======
->>>>>>> master-origin/master
         self.spatial_scale = float(spatial_scale)
         self.sample_num = int(sample_num)
 

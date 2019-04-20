@@ -73,18 +73,12 @@ using namespace at;
        i += blockDim.x * gridDim.x)
 
 const int CUDA_NUM_THREADS = 1024;
-<<<<<<< HEAD
 
-inline int GET_BLOCKS(const int N)
-{
-  return (N + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS;
-=======
 const int kMaxGridNum = 65535;
 
 inline int GET_BLOCKS(const int N)
 {
   return std::min(kMaxGridNum, (N + CUDA_NUM_THREADS - 1) / CUDA_NUM_THREADS);
->>>>>>> master-origin/master
 }
 
 template <typename scalar_t>

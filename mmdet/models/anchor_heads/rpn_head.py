@@ -16,15 +16,10 @@ class RPNHead(AnchorHead):
         super(RPNHead, self).__init__(2, in_channels, **kwargs)
 
     def _init_layers(self):
-<<<<<<< HEAD
         # a 3x3 conv.
         self.rpn_conv = nn.Conv2d(
             self.in_channels, self.feat_channels, 3, padding=1)
         # a 1x1 conv. to generate
-=======
-        self.rpn_conv = nn.Conv2d(
-            self.in_channels, self.feat_channels, 3, padding=1)
->>>>>>> master-origin/master
         self.rpn_cls = nn.Conv2d(self.feat_channels,
                                  self.num_anchors * self.cls_out_channels, 1)
         self.rpn_reg = nn.Conv2d(self.feat_channels, self.num_anchors * 4, 1)
@@ -36,16 +31,6 @@ class RPNHead(AnchorHead):
 
     def forward_single(self, x):
         x = self.rpn_conv(x)
-<<<<<<< HEAD
-        x = F.relu(x, inplace=True)     # do not normalize.
-        rpn_cls_score = self.rpn_cls(x)
-        rpn_bbox_pred = self.rpn_reg(x) # reg are the dx, dy, dw, dh of all anchor of a point.
-        return rpn_cls_score, rpn_bbox_pred
-
-    def loss(self, cls_scores, bbox_preds, gt_bboxes, img_metas, cfg):
-        losses = super(RPNHead, self).loss(cls_scores, bbox_preds, gt_bboxes,
-                                           None, img_metas, cfg)
-=======
         x = F.relu(x, inplace=True)
         rpn_cls_score = self.rpn_cls(x)
         rpn_bbox_pred = self.rpn_reg(x)
@@ -66,20 +51,13 @@ class RPNHead(AnchorHead):
             img_metas,
             cfg,
             gt_bboxes_ignore=gt_bboxes_ignore)
->>>>>>> master-origin/master
         return dict(
             loss_rpn_cls=losses['loss_cls'], loss_rpn_reg=losses['loss_reg'])
 
     def get_bboxes_single(self,
-<<<<<<< HEAD
                           cls_scores,       #
                           bbox_preds,       # delta_preds.
                           mlvl_anchors,     # anchors of all levels.
-=======
-                          cls_scores,
-                          bbox_preds,
-                          mlvl_anchors,
->>>>>>> master-origin/master
                           img_shape,
                           scale_factor,
                           cfg,

@@ -18,7 +18,7 @@ import shutil
 
 """ generate validation set for full images """
 val_set = 500
-data_root = '/home/data3/IC19/'
+data_root = '/home/xieenze/data/IC19/'
 LSVT_full_image_data_root = data_root + 'LSVT/train_full_images/'
 LSVT_full_gt_data_root = data_root + 'LSVT/annotations/'
 vis_path = './results/'
@@ -44,7 +44,7 @@ def random_split_validation(image_path, ann_file, train_ann_file, val_ann_file,
     val_num, train_num = int(val_set), len(img_files) - int(val_set)
     np.random.seed(random_seed)
     val_files = np.random.choice(img_files, val_num, replace=False)
-
+    print('test-size-size:', len(val_files))
     for file in img_files:
         if file in val_files:
             shutil.copy(osp.join(image_path, file), osp.join(valset_path, file))

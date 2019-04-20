@@ -14,7 +14,7 @@ from .extra_aug import ExtraAugmentation, ExtraAugmentationIC
 """ a version with crop. 
     add support IC17.
 """
-debug_path = '/home/data3/sxg/IC19/mmdetection-master/visualization/debug/'
+debug_path = '/data/sxg_workspace/mmdetection-master/visualization/debug/'
 # debug_path = '/home/xieenze/sxg_workspace/mmdetection-master/visualization/debug/'
 
 
@@ -62,8 +62,9 @@ class CustomCropDataset(Dataset):
 
         # load annotations (and proposals)
         # need to be implement.
-        self.img_infos = self.load_annotations(ann_file) if 'ICDAR2017_MLT' not in ann_file \
-            else self.load_annotations_ic17(ann_file)
+        # in test mode or not
+        self.test_mode = test_mode
+        self.img_infos = self.load_annotations(ann_file)
         if proposal_file is not None:
             self.proposals = self.load_proposals(proposal_file)
         else:
@@ -98,8 +99,6 @@ class CustomCropDataset(Dataset):
         self.with_crowd = with_crowd
         # with label is False for RPN
         self.with_label = with_label
-        # in test mode or not
-        self.test_mode = test_mode
 
         # set group flag for the sampler
         if not self.test_mode:
@@ -135,11 +134,6 @@ class CustomCropDataset(Dataset):
 
     def get_ann_info(self, idx):
         return self.img_infos[idx]['ann']
-
-    def load_annotations_ic17(self, ann_path):
-        """ used for IC17 """
-        """ will change IC annotations to JSON """
-        return mmcv.load(ann_path)
 
     def _filter_imgs(self, min_size=32):
         """Filter images too small."""
@@ -299,7 +293,11 @@ class CustomCropDataset(Dataset):
 
     def debug_rc(self, img, gt_bboxes, gt_masks, img_name):
         """ a debug function for random crop """
-        identifier = 'art' if 'art' in self.img_prefix else 'lsvt'
+        # identifier = 'art' if 'art' in self.img_prefix else 'lsvt'
+        identifier = 'unknown'
+        for t in ['art', 'LSVT', 'IC17', 'IC19']:
+            if t in self.img_prefix:
+                identifier = t
         save_path = osp.join(debug_path, identifier)
         debug_img = img.copy()
         debug_img = debug_img.transpose(1, 2, 0)

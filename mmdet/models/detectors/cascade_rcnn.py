@@ -215,14 +215,16 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
         scale_factor = img_meta[0]['scale_factor']
 
         # "ms" in variable names means multi-stage
+        # bboxes of 3 rcnn stages.
         ms_bbox_result = {}
         ms_segm_result = {}
         ms_scores = []
         rcnn_test_cfg = self.test_cfg.rcnn
 
-        rois = bbox2roi(proposal_list)
+        rois = bbox2roi(proposal_list)  # get rois from proposal_list.
         for i in range(self.num_stages):
             bbox_roi_extractor = self.bbox_roi_extractor[i]
+            # get roi for box head, and send roi to box_head.
             bbox_head = self.bbox_head[i]
 
             bbox_feats = bbox_roi_extractor(
@@ -231,6 +233,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
             ms_scores.append(cls_score)
 
             if self.test_cfg.keep_all_stages:
+                # keep all bboxes that produced by all stages.
                 det_bboxes, det_labels = bbox_head.get_det_bboxes(
                     rois,
                     cls_score,
@@ -264,6 +267,8 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                     ms_segm_result['stage{}'.format(i)] = segm_result
 
             if i < self.num_stages - 1:
+                # select the max label, and make new rois to generate
+                # new pred bboxes.
                 bbox_label = cls_score.argmax(dim=1)
                 rois = bbox_head.regress_by_class(rois, bbox_label, bbox_pred,
                                                   img_meta[0])
@@ -287,6 +292,7 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
                     [] for _ in range(self.mask_head[-1].num_classes - 1)
                 ]
             else:
+                # if rescale then resized to target size.
                 _bboxes = (det_bboxes[:, :4] * scale_factor
                            if rescale else det_bboxes)
                 mask_rois = bbox2roi([_bboxes])
@@ -322,8 +328,28 @@ class CascadeRCNN(BaseDetector, RPNTestMixin):
 
         return results
 
-    def aug_test(self, img, img_meta, proposals=None, rescale=False):
-        raise NotImplementedError
+    def aug_test(self, imgs, img_metas, proposals=None, rescale=False):
+        # raise NotImplementedError
+        proposal_list = self.aug_test_rpn(
+            self.extract_feat(imgs), img_metas, self.test_cfg.rpn)
+        det_bboxes, det_labels = self.aug_test_cascade_bboxes(
+            self.extract_feats(imgs), img_metas, proposal_list,
+            self.test_cfg.rcnn)
+
+        if rescale:
+            _det_bboxes = det_bboxes
+        else:
+            _det_bboxes = det_bboxes.clone()
+            _det_bboxes[:, :4] *= img_metas[0][0]['scale_factor']
+        bbox_results = bbox2result(_det_bboxes, det_labels,
+                                   self.bbox_head.num_classes)
+
+        if self.with_mask:
+            segm_results = self.aug_test_mask(
+                self.extract_feats(imgs), img_metas, det_bboxes, det_labels)
+            return bbox_results, segm_results
+        else:
+            return bbox_results
 
     def show_result(self, data, result, img_norm_cfg, **kwargs):
         if self.with_mask:

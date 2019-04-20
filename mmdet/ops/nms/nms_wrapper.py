@@ -1,23 +1,6 @@
 import numpy as np
 import torch
 
-<<<<<<< HEAD
-from .gpu_nms import gpu_nms
-from .cpu_nms import cpu_nms
-from .cpu_soft_nms import cpu_soft_nms
-
-
-def nms(dets, iou_thr, device_id=None):
-    """Dispatch to either CPU or GPU NMS implementations."""
-    if isinstance(dets, torch.Tensor):
-        is_tensor = True
-        if dets.is_cuda:
-            device_id = dets.get_device()
-        dets_np = dets.detach().cpu().numpy()
-    elif isinstance(dets, np.ndarray):
-        is_tensor = False
-        dets_np = dets
-=======
 from . import nms_cuda, nms_cpu
 from .soft_nms_cpu import soft_nms_cpu
 
@@ -47,24 +30,11 @@ def nms(dets, iou_thr, device_id=None):
         is_numpy = True
         device = 'cpu' if device_id is None else 'cuda:{}'.format(device_id)
         dets_th = torch.from_numpy(dets).to(device)
->>>>>>> master-origin/master
     else:
         raise TypeError(
             'dets must be either a Tensor or numpy array, but got {}'.format(
                 type(dets)))
 
-<<<<<<< HEAD
-    if dets_np.shape[0] == 0:
-        inds = []
-    else:
-        inds = (gpu_nms(dets_np, iou_thr, device_id=device_id)
-                if device_id is not None else cpu_nms(dets_np, iou_thr))
-
-    if is_tensor:
-        inds = dets.new_tensor(inds, dtype=torch.long)
-    else:
-        inds = np.array(inds, dtype=np.int64)
-=======
     # execute cpu or cuda nms
     if dets_th.shape[0] == 0:
         inds = dets_th.new_zeros(0, dtype=torch.long)
@@ -76,7 +46,6 @@ def nms(dets, iou_thr, device_id=None):
 
     if is_numpy:
         inds = inds.cpu().numpy()
->>>>>>> master-origin/master
     return dets[inds, :], inds
 
 
@@ -95,11 +64,8 @@ def soft_nms(dets, iou_thr, method='linear', sigma=0.5, min_score=1e-3):
     method_codes = {'linear': 1, 'gaussian': 2}
     if method not in method_codes:
         raise ValueError('Invalid method for SoftNMS: {}'.format(method))
-<<<<<<< HEAD
-    new_dets, inds = cpu_soft_nms(
-=======
+
     new_dets, inds = soft_nms_cpu(
->>>>>>> master-origin/master
         dets_np,
         iou_thr,
         method=method_codes[method],

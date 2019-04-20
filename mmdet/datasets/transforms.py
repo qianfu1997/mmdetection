@@ -133,3 +133,5 @@ class Numpy2Tensor(object):
             return torch.from_numpy(args[0])
         else:
             return tuple([torch.from_numpy(np.array(array)) for array in args])
+
+

@@ -184,7 +184,7 @@ def bbox_overlap_ic(bboxes1, bboxes2, mode='iob'):
     :returns:
         ious(ndarray): shape (n, k)
     """
-    assert mode in ['iou', 'iof']
+    assert mode in ['iou', 'iof', 'iob']
 
     bboxes1 = bboxes1.astype(np.float32)
     bboxes2 = bboxes2.astype(np.float32)
@@ -302,7 +302,6 @@ class advanceRandomRotationIC(object):
         random_anchor = [90, 270]
         angle += random.choice(random_anchor) if bool(self.angle_flip > 0 and
                                                       np.random.rand() < self.angle_flip) else 0
-
         # first ver_flip
         ver_flip_f = bool(self.ver_flip_ratio > 0 and np.random.rand() < self.ver_flip_ratio)
         rotation_matrix = cv2.getRotationMatrix2D((int(img_w / 2), int(img_h / 2)), angle, 1)
@@ -410,7 +409,8 @@ class RandomCropIC(object):
         for idx in range(len(gt_masks)):
             mask = gt_masks[idx][:img_h, :img_w]
             label[mask > 0] = 1
-        while True:
+        count = 50
+        while count > 0:
             # randomly select a patch.
             if random.random() > 3.0 / 8.0 and np.max(label) > 0:
                 tl = tuple(np.maximum(np.min(np.where(label > 0), axis=1) - tar_size, 0))
@@ -427,7 +427,8 @@ class RandomCropIC(object):
             patch = np.array((int(j), int(i), int(j + tar_size[1]), int(i + tar_size[0])))
             overlaps = bbox_overlaps(
                 patch.reshape(-1, 4), gt_bboxes.reshape(-1, 4), mode='iob').reshape(-1)
-            if len(gt_masks) > 0 and overlaps.min() < 0.3:
+            if len(gt_masks) > 0 and (0 < overlaps.min() < 0.3):
+                count -= 1
                 continue
             else:
                 break

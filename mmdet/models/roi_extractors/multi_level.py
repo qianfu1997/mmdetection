@@ -79,7 +79,7 @@ class MultiRoIExtractor(nn.Module):
     #         inds = target_lvls == i
     #         if inds.any():
     #             rois_ = rois[inds, :]
-    #             # use the corresponding roi_layer to
+    #             # use the corresponding roi_lpanayer to
     #             roi_feats_t = self.roi_layers[i](feats[i], rois_)
     #             roi_feats[inds] += roi_feats_t
     #     return roi_feats

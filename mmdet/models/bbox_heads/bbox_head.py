@@ -38,10 +38,7 @@ class BBoxHead(nn.Module):
         if self.with_avg_pool:
             self.avg_pool = nn.AvgPool2d(roi_feat_size)
         else:
-<<<<<<< HEAD
             # in_channels = in_channels * (roi_feat_size ** 2) for fc.
-=======
->>>>>>> master-origin/master
             in_channels *= (self.roi_feat_size * self.roi_feat_size)
         if self.with_cls:
             self.fc_cls = nn.Linear(in_channels, num_classes)
@@ -73,10 +70,7 @@ class BBoxHead(nn.Module):
         pos_gt_bboxes = [res.pos_gt_bboxes for res in sampling_results]
         pos_gt_labels = [res.pos_gt_labels for res in sampling_results]
         reg_classes = 1 if self.reg_class_agnostic else self.num_classes
-<<<<<<< HEAD
         # targ
-=======
->>>>>>> master-origin/master
         cls_reg_targets = bbox_target(
             pos_proposals,
             neg_proposals,
@@ -117,13 +111,10 @@ class BBoxHead(nn.Module):
                        scale_factor,
                        rescale=False,
                        cfg=None):
-<<<<<<< HEAD
         """ get rois, and the corresponding cls_socre and pred_score,
         then use delta2bbox to generate final predicts. rois[:, 0] is the img_id,
 
         """
-=======
->>>>>>> master-origin/master
         if isinstance(cls_score, list):
             cls_score = sum(cls_score) / float(len(cls_score))
         scores = F.softmax(cls_score, dim=1) if cls_score is not None else None
@@ -136,11 +127,8 @@ class BBoxHead(nn.Module):
             # TODO: add clip here
 
         if rescale:
-<<<<<<< HEAD
             # det bboxes are fit to the ori shape if rescale.
             # the box are corresponding to the rois
-=======
->>>>>>> master-origin/master
             bboxes /= scale_factor
 
         if cfg is None:
@@ -212,6 +200,7 @@ class BBoxHead(nn.Module):
         assert bbox_pred.size(1) == 4
 
         if rois.size(1) == 4:
+            # change delta to bbox to make new rois.
             new_rois = delta2bbox(rois, bbox_pred, self.target_means,
                                   self.target_stds, img_meta['img_shape'])
         else:

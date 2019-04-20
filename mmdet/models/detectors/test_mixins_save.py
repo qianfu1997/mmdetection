@@ -58,7 +58,6 @@ class BBoxTestMixin(object):
         aug_scores = []
         for x, img_meta in zip(feats, img_metas):
             # only one image in the batch
-            # for each img and img_meta.
             img_shape = img_meta[0]['img_shape']
             scale_factor = img_meta[0]['scale_factor']
             flip = img_meta[0]['flip']
@@ -85,71 +84,6 @@ class BBoxTestMixin(object):
             aug_bboxes.append(bboxes)
             aug_scores.append(scores)
         # after merging, bboxes will be rescaled to the original image size
-        # here to calculate the mean box.
-        merged_bboxes, merged_scores = merge_aug_bboxes(
-            aug_bboxes, aug_scores, img_metas, rcnn_test_cfg)
-        det_bboxes, det_labels = multiclass_nms(
-            merged_bboxes, merged_scores, rcnn_test_cfg.score_thr,
-            rcnn_test_cfg.nms, rcnn_test_cfg.max_per_img)
-        return det_bboxes, det_labels
-
-    def aug_test_cascadercnn_bboxes(self, feats, img_metas, proposal_list, rcnn_test_cfg):
-        """ implement for cascade aug test. """
-        aug_bboxes = []
-        aug_scores = []
-        for x, img_meta in zip(feats, img_metas):
-            img_shape = img_meta[0]['img_shape']
-            ori_shape = img_meta[0]['ori_shape']
-            scale_factor = img_meta[0]['scale_factor']
-            flip = img_meta[0]['flip']
-
-            # TODO more flexible
-            proposals = bbox_mapping(proposal_list[0][:, :4], img_shape,
-                                     scale_factor, flip)
-            rois = bbox2roi([proposals])
-
-            # get bbox from different stages
-            ms_bbox_result = {}
-            ms_segm_result = {}
-            ms_scores = []
-            rcnn_test_cfg = self.test_cfg_rcnn
-            for i in range(self.num_stages):
-                # for each image there are 3 stages to go through.
-                bbox_roi_extractor = self.bbox_roi_extractor[i]
-                bbox_head = self.bbox_head[i]
-                bbox_feats = bbox_roi_extractor(
-                    x[:len(bbox_roi_extractor.featmap_strides), rois])
-                cls_score, bbox_pred = bbox_head(bbox_feats)
-                # get bboxes scores from all num_stages
-                ms_scores.append(cls_score)
-                # the rois are the same, so the predicted bboxes can be
-                # average between them
-                if self.test_cfg.keep_all_stages:
-                    det_bboxes, det_labels = bbox_head.get_det_bboxes(
-                        rois,
-                        cls_score,
-                        bbox_pred,
-                        img_shape,
-                        scale_factor,
-                        rescale=False,
-                        cfg=None)
-                    aug_bboxes.append(det_bboxes)
-
-                if i < self.num_stages - 1:
-                    bbox_label = cls_score.argmax(dim=1)
-                    rois = bbox_head.regress_by_class(rois, bbox_label, bbox_pred,
-                                                      img_meta[0])
-            cls_score = sum(ms_scores) / self.num_stages
-            bboxes, scores = self.bbox_head[-1].get_det_bboxes(
-                rois,
-                cls_score,
-                bbox_pred,
-                scale_factor,
-                rescale=False,
-                cfg=None)
-            aug_bboxes.append(bboxes)
-            aug_scores.append(scores)
-
         merged_bboxes, merged_scores = merge_aug_bboxes(
             aug_bboxes, aug_scores, img_metas, rcnn_test_cfg)
         det_bboxes, det_labels = multiclass_nms(
@@ -220,40 +154,3 @@ class MaskTestMixin(object):
                 scale_factor=1.0,           # and won't rescale to the rescale img.
                 rescale=False)
         return segm_result
-
-    def aug_test_cascade_mask(self, feats, img_metas, det_bboxes, det_labels):
-        if det_bboxes.shape[0] == 0:
-            segm_result = [[] for _ in range(self.mask_head[-1].num_classes - 1)]
-        else:
-            aug_masks = []
-            aug_img_metas = []
-            if self.mask_head.mask_score:
-                aug_mask_ious = []
-                for x, img_meta in zip(feats, img_metas):
-                    img_shape = img_meta[0]['img_shape']
-                    scale_factor = img_meta[0]['scale_factor']
-                    flip = img_meta[0]['flip']
-                    _bboxes = bbox_mapping(det_bboxes[:, :4], img_shape,
-                                           scale_factor, flip)
-                    mask_rois = bbox2roi([_bboxes])
-                    for i in range(self.num_stages):
-                        mask_roi_extractor = self.mask_roi_extractor[i]
-                        mask_feats = mask_roi_extractor(
-                            x[:len(mask_roi_extractor.featmap_strides)],
-                            mask_rois)
-                        mask_pred = self.mask_head[i](mask_feats)
-                        aug_masks.append(mask_pred)
-                        aug_img_metas.append(img_meta)
-                merged_masks = merge_aug_masks(aug_masks, aug_img_metas,
-                                               self.test_cfg.rcnn)
-                ori_shape = img_metas[0][0]['ori_shape']
-                segm_result = self.mask_head[-1].get_seg_masks(
-                    merged_masks,
-                    det_bboxes,
-                    det_labels,
-                    self.test_cfg.rcnn,
-                    ori_shape,
-                    scale_factor=1.0,
-                    rescale=False)
-        return segm_result
-

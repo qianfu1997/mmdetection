@@ -16,10 +16,7 @@ class FPN(nn.Module):
                  start_level=0,
                  end_level=-1,
                  add_extra_convs=False,
-<<<<<<< HEAD
-=======
                  extra_convs_on_inputs=True,
->>>>>>> master-origin/master
                  normalize=None,
                  activation=None):
         super(FPN, self).__init__()
@@ -42,10 +39,7 @@ class FPN(nn.Module):
         self.start_level = start_level
         self.end_level = end_level
         self.add_extra_convs = add_extra_convs
-<<<<<<< HEAD
-=======
         self.extra_convs_on_inputs = extra_convs_on_inputs
->>>>>>> master-origin/master
 
         self.lateral_convs = nn.ModuleList()
         self.fpn_convs = nn.ModuleList()
@@ -68,32 +62,21 @@ class FPN(nn.Module):
                 bias=self.with_bias,
                 activation=self.activation,
                 inplace=False)
-
-<<<<<<< HEAD
             self.lateral_convs.append(l_conv)       # lateral_connection
             self.fpn_convs.append(fpn_conv)         # top-down path.
 
             # lvl_id = i - self.start_level
             # setattr(self, 'lateral_conv{}'.format(lvl_id), l_conv)
             # setattr(self, 'fpn_conv{}'.format(lvl_id), fpn_conv)
-=======
-            self.lateral_convs.append(l_conv)
-            self.fpn_convs.append(fpn_conv)
->>>>>>> master-origin/master
 
         # add extra conv layers (e.g., RetinaNet)
         extra_levels = num_outs - self.backbone_end_level + self.start_level
         if add_extra_convs and extra_levels >= 1:
             for i in range(extra_levels):
-<<<<<<< HEAD
-                in_channels = (self.in_channels[self.backbone_end_level - 1]
-                               if i == 0 else out_channels)
-=======
                 if i == 0 and self.extra_convs_on_inputs:
                     in_channels = self.in_channels[self.backbone_end_level - 1]
                 else:
                     in_channels = out_channels
->>>>>>> master-origin/master
                 extra_fpn_conv = ConvModule(
                     in_channels,
                     out_channels,
@@ -141,16 +124,11 @@ class FPN(nn.Module):
                     outs.append(F.max_pool2d(outs[-1], 1, stride=2))
             # add conv layers on top of original feature maps (RetinaNet)
             else:
-<<<<<<< HEAD
-                orig = inputs[self.backbone_end_level - 1]
-                outs.append(self.fpn_convs[used_backbone_levels](orig))
-=======
                 if self.extra_convs_on_inputs:
                     orig = inputs[self.backbone_end_level - 1]
                     outs.append(self.fpn_convs[used_backbone_levels](orig))
                 else:
                     outs.append(self.fpn_convs[used_backbone_levels](outs[-1]))
->>>>>>> master-origin/master
                 for i in range(used_backbone_levels + 1, self.num_outs):
                     # BUG: we should add relu before each extra conv
                     outs.append(self.fpn_convs[i](outs[-1]))

@@ -35,11 +35,7 @@ class BasicBlock(nn.Module):
                  style='pytorch',
                  with_cp=False,
                  normalize=dict(type='BN'),
-<<<<<<< HEAD
                  dcn=None):         # dcn indicates whether and how to use deformable conv.
-=======
-                 dcn=None):
->>>>>>> master-origin/master
         super(BasicBlock, self).__init__()
         assert dcn is None, "Not implemented yet."
 
@@ -95,11 +91,7 @@ class Bottleneck(nn.Module):
                  downsample=None,
                  style='pytorch',
                  with_cp=False,
-<<<<<<< HEAD
                  normalize=dict(type='BN'),     # default use BN.
-=======
-                 normalize=dict(type='BN'),
->>>>>>> master-origin/master
                  dcn=None):
         """Bottleneck block for ResNet.
         If style is "pytorch", the stride-two layer is the 3x3 conv layer,
@@ -150,7 +142,6 @@ class Bottleneck(nn.Module):
             deformable_groups = dcn.get('deformable_groups', 1)
             if not self.with_modulated_dcn:
                 conv_op = DeformConv
-<<<<<<< HEAD
                 offset_channels = 18        # 3x3x2
             else:
                 conv_op = ModulatedDeformConv
@@ -158,26 +149,12 @@ class Bottleneck(nn.Module):
             self.conv2_offset = nn.Conv2d(              # here to predict offset field.
                 planes,
                 deformable_groups * offset_channels,    # use 3x3 conv to predict offset field.
-=======
-                offset_channels = 18
-            else:
-                conv_op = ModulatedDeformConv
-                offset_channels = 27
-            self.conv2_offset = nn.Conv2d(
-                planes,
-                deformable_groups * offset_channels,
->>>>>>> master-origin/master
                 kernel_size=3,
                 stride=self.conv2_stride,
                 padding=dilation,
                 dilation=dilation)
-<<<<<<< HEAD
             self.conv2 = conv_op(                       # use DeformConv to rearrange the image matrix
                 planes,                                 # and implement standard 3x3 conv to rearranged map.
-=======
-            self.conv2 = conv_op(
-                planes,
->>>>>>> master-origin/master
                 planes,
                 kernel_size=3,
                 stride=self.conv2_stride,
@@ -377,10 +354,7 @@ class ResNet(nn.Module):
 
         self.res_layers = []
         for i, num_blocks in enumerate(self.stage_blocks):
-<<<<<<< HEAD
             # stride settings of each stage.
-=======
->>>>>>> master-origin/master
             stride = strides[i]
             dilation = dilations[i]
             dcn = self.dcn if self.stage_with_dcn[i] else None
@@ -398,10 +372,7 @@ class ResNet(nn.Module):
                 dcn=dcn)
             self.inplanes = planes * self.block.expansion
             layer_name = 'layer{}'.format(i + 1)
-<<<<<<< HEAD
             # raise a name.
-=======
->>>>>>> master-origin/master
             self.add_module(layer_name, res_layer)
             self.res_layers.append(layer_name)
 

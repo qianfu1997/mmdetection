@@ -25,6 +25,7 @@ def merge_aug_proposals(aug_proposals, img_metas, rpn_test_cfg):
         scale_factor = img_info['scale_factor']
         flip = img_info['flip']
         _proposals = proposals.clone()
+        # map the proposals back to the original image scale.
         _proposals[:, :4] = bbox_mapping_back(_proposals[:, :4], img_shape,
                                               scale_factor, flip)
         recovered_proposals.append(_proposals)
@@ -55,16 +56,11 @@ def merge_aug_bboxes(aug_bboxes, aug_scores, img_metas, rcnn_test_cfg):
         img_shape = img_info[0]['img_shape']
         scale_factor = img_info[0]['scale_factor']
         flip = img_info[0]['flip']
-<<<<<<< HEAD
         # recover to fit the img_shape and flip, to the original img.
         bboxes = bbox_mapping_back(bboxes, img_shape, scale_factor, flip)
         recovered_bboxes.append(bboxes)
     # stack to the dim=0, calculate mean.
     # mean(boxes of same proposal), this may be better.
-=======
-        bboxes = bbox_mapping_back(bboxes, img_shape, scale_factor, flip)
-        recovered_bboxes.append(bboxes)
->>>>>>> master-origin/master
     bboxes = torch.stack(recovered_bboxes).mean(dim=0)
     if aug_scores is None:
         return bboxes
@@ -75,6 +71,7 @@ def merge_aug_bboxes(aug_bboxes, aug_scores, img_metas, rcnn_test_cfg):
 
 def merge_aug_scores(aug_scores):
     """Merge augmented bbox scores."""
+    # first stack all bboxes then calculate the mean scores.
     if isinstance(aug_scores[0], torch.Tensor):
         return torch.mean(torch.stack(aug_scores), dim=0)
     else:

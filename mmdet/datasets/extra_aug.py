@@ -145,6 +145,28 @@ class RandomCrop(object):
 
                 return img, boxes, labels
 
+
+class ExtraAugmentation(object):
+
+    def __init__(self,
+                 photo_metric_distortion=None,
+                 expand=None,
+                 random_crop=None):
+        self.transforms = []
+        if photo_metric_distortion is not None:
+            self.transforms.append(
+                PhotoMetricDistortion(**photo_metric_distortion))
+        if expand is not None:
+            self.transforms.append(Expand(**expand))
+        if random_crop is not None:
+            self.transforms.append(RandomCrop(**random_crop))
+
+    def __call__(self, img, boxes, labels):
+        img = img.astype(np.float32)
+        for transform in self.transforms:
+            img, boxes, labels = transform(img, boxes, labels)
+        return img, boxes, labels
+
 # def get_rect_from_cnt(cnt):
 #     # cnt_points = np.array(cnt).reshape(-1, 2).astype(np.int64)
 #     # box = np.zeros(4)
@@ -401,8 +423,9 @@ class RandomCropIC(object):
                     box = get_rect_from_cnt(cnt)
                     new_gt_bbox.append(box.copy())
                     # pad the masks
-                    mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_h, 0, crp_w - tar_w, borderType=cv2.BORDER_CONSTANT,
-                                               value=(0,))
+                    if self.pad:
+                        mask_p = cv2.copyMakeBorder(mask, 0, crp_h - tar_h, 0, crp_w - tar_w, borderType=cv2.BORDER_CONSTANT,
+                                                   value=(0,))
                     new_gt_mask.append(mask_p.copy())
                     new_gt_labels.append(gt_labels[idx])
 
@@ -482,4 +505,52 @@ class ExtraAugmentationIC(object):
             img, boxes, labels, ignore_bboxes, masks, ignore_masks, img_shape, pad_shape = \
                 transform(img=img, gt_bboxes=boxes, gt_labels=labels, gt_masks=masks, gt_ignore_bboxes=ignore_bboxes, gt_ignore_masks=ignore_masks, img_shape=img_shape, pad_shape=pad_shape)
         return img, boxes, labels, ignore_bboxes, masks, img_shape, pad_shape
+
+
+class ExtraAugmentationConcatIC(object):
+    def __init__(self, random_rotate=None, random_crop=None, photo_metric_distortion=None,
+                 concat=False):
+        self.first_transforms = []
+        if photo_metric_distortion is not None:
+            self.first_transforms.append(PhotoMetricDistortionIC(**photo_metric_distortion))
+
+        self.transforms = []
+        if random_rotate is not None:
+            self.transforms.append(RandomRotationIC(**random_rotate))
+        if (concat is False) and random_crop is not None:
+            self.transforms.append(RandomCropIC(**random_crop))
+
+        self.cc = []
+        if random_crop is not None and concat:
+            """ only use random crop after concat images."""
+            self.cc.append(RandomCropIC(**random_crop))
+
+        # do not add random crop
+    def first_transform(self, img):
+        if len(self.first_transforms) > 1:
+            img = img.astype(np.float32)
+            for transform in self.first_transforms:
+                img = transform(img)
+        return img
+
+    def concat_crop(self, img, boxes, labels, masks, ignore_bboxes, ignore_masks, img_shape, pad_shape):
+        """ the img and boxes are merged from two images ."""
+        img = img.astype(np.float32)
+        for transform in self.cc:
+            img, boxes, labels, ignore_bboxes, masks, ignore_masks, img_shape, pad_shape = \
+                transform(img=img, gt_bboxes=boxes, gt_labels=labels, gt_masks=masks,
+                          gt_ignore_bboxes=ignore_bboxes, gt_ignore_masks=ignore_masks, img_shape=img_shape,
+                          pad_shape=pad_shape)
+        return img, boxes, labels, ignore_bboxes, masks, img_shape, pad_shape
+
+    def __call__(self, img, boxes, labels, masks, ignore_bboxes, ignore_masks, img_shape, pad_shape):
+        img = img.astype(np.float32)
+        # different from original extra_aug, this one return the ignore_masks.
+        for transform in self.transforms:
+            img, boxes, labels, ignore_bboxes, masks, ignore_masks, img_shape, pad_shape = \
+                transform(img=img, gt_bboxes=boxes, gt_labels=labels, gt_masks=masks, gt_ignore_bboxes=ignore_bboxes, gt_ignore_masks=ignore_masks, img_shape=img_shape, pad_shape=pad_shape)
+        return img, boxes, labels, ignore_bboxes, masks, ignore_masks, img_shape, pad_shape
+
+
+
 

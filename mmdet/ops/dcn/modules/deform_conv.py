@@ -19,25 +19,17 @@ class DeformConv(nn.Module):
                  groups=1,
                  deformable_groups=1,
                  bias=False):
-<<<<<<< HEAD
-        assert not bias
-        super(DeformConv, self).__init__()
-
-=======
         super(DeformConv, self).__init__()
 
         assert not bias
->>>>>>> master-origin/master
         assert in_channels % groups == 0, \
             'in_channels {} cannot be divisible by groups {}'.format(
                 in_channels, groups)
         assert out_channels % groups == 0, \
             'out_channels {} cannot be divisible by groups {}'.format(
                 out_channels, groups)
-<<<<<<< HEAD
-=======
 
->>>>>>> master-origin/master
+
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.kernel_size = _pair(kernel_size)
@@ -60,12 +52,6 @@ class DeformConv(nn.Module):
         stdv = 1. / math.sqrt(n)
         self.weight.data.uniform_(-stdv, stdv)
 
-<<<<<<< HEAD
-    def forward(self, input, offset):
-        return deform_conv(input, offset, self.weight, self.stride,
-                           self.padding, self.dilation, self.groups,
-                           self.deformable_groups)
-=======
     def forward(self, x, offset):
         return deform_conv(x, offset, self.weight, self.stride, self.padding,
                            self.dilation, self.groups, self.deformable_groups)
@@ -94,7 +80,6 @@ class DeformConvPack(DeformConv):
         offset = self.conv_offset(x)
         return deform_conv(x, offset, self.weight, self.stride, self.padding,
                            self.dilation, self.groups, self.deformable_groups)
->>>>>>> master-origin/master
 
 
 class ModulatedDeformConv(nn.Module):
@@ -138,45 +123,19 @@ class ModulatedDeformConv(nn.Module):
         if self.bias is not None:
             self.bias.data.zero_()
 
-<<<<<<< HEAD
-    def forward(self, input, offset, mask):
-        return modulated_deform_conv(
-            input, offset, mask, self.weight, self.bias, self.stride,
-            self.padding, self.dilation, self.groups, self.deformable_groups)
-=======
     def forward(self, x, offset, mask):
         return modulated_deform_conv(x, offset, mask, self.weight, self.bias,
                                      self.stride, self.padding, self.dilation,
                                      self.groups, self.deformable_groups)
->>>>>>> master-origin/master
 
 
 class ModulatedDeformConvPack(ModulatedDeformConv):
 
-<<<<<<< HEAD
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 kernel_size,
-                 stride=1,
-                 padding=0,
-                 dilation=1,
-                 groups=1,
-                 deformable_groups=1,
-                 bias=True):
-        super(ModulatedDeformConvPack, self).__init__(
-            in_channels, out_channels, kernel_size, stride, padding, dilation,
-            groups, deformable_groups, bias)
-
-        self.conv_offset_mask = nn.Conv2d(
-            self.in_channels // self.groups,
-=======
     def __init__(self, *args, **kwargs):
         super(ModulatedDeformConvPack, self).__init__(*args, **kwargs)
 
         self.conv_offset_mask = nn.Conv2d(
             self.in_channels,
->>>>>>> master-origin/master
             self.deformable_groups * 3 * self.kernel_size[0] *
             self.kernel_size[1],
             kernel_size=self.kernel_size,
@@ -189,16 +148,6 @@ class ModulatedDeformConvPack(ModulatedDeformConv):
         self.conv_offset_mask.weight.data.zero_()
         self.conv_offset_mask.bias.data.zero_()
 
-<<<<<<< HEAD
-    def forward(self, input):
-        out = self.conv_offset_mask(input)
-        o1, o2, mask = torch.chunk(out, 3, dim=1)
-        offset = torch.cat((o1, o2), dim=1)
-        mask = torch.sigmoid(mask)
-        return modulated_deform_conv(
-            input, offset, mask, self.weight, self.bias, self.stride,
-            self.padding, self.dilation, self.groups, self.deformable_groups)
-=======
     def forward(self, x):
         out = self.conv_offset_mask(x)
         o1, o2, mask = torch.chunk(out, 3, dim=1)
@@ -207,4 +156,3 @@ class ModulatedDeformConvPack(ModulatedDeformConv):
         return modulated_deform_conv(x, offset, mask, self.weight, self.bias,
                                      self.stride, self.padding, self.dilation,
                                      self.groups, self.deformable_groups)
->>>>>>> master-origin/master

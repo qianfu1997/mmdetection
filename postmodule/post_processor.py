@@ -42,7 +42,7 @@ def get_text_cc(mask, shape, ori_shape, min_area=300):
     scale = (ori_shape[1] * 1.0 / shape[1], ori_shape[0] * 1.0 / shape[0])
     instance_img = np.zeros(ori_shape, dtype=np.uint8)
     instance_img[mask] = 1
-    (label_num, label, stats, _ ) = cv2.connectedComponentsWithStats(instance_img.astype(np.uint8), connectivity=4)
+    (label_num, label, stats, _) = cv2.connectedComponentsWithStats(instance_img.astype(np.uint8), connectivity=4)
     lblareas = stats[:, cv2.CC_STAT_AREA]
     max_index = np.argmax(lblareas[1:]) + 1
     points = np.array(np.where(label == max_index)).transpose((1, 0))[:, ::-1]
@@ -56,12 +56,15 @@ def get_text_cc(mask, shape, ori_shape, min_area=300):
 def get_union(pa, pb):
     return pa.area() + pb.area() - get_intersection(pa, pb) + 1e-4
 
+
 def get_intersection(pa, pb):
     pc = pa & pb
     return pc.area()
 
+
 def get_polygon(box):
     return plg.Polygon(box)
+
 
 def rect_nms(bbox_rects, bbox_scores, nms_thr=0.5):
     """
